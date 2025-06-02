@@ -1,4 +1,4 @@
-# lfs-init
+# gozjaro-bootstrap
 
-The scripts for initialization of the LFS of the Gozjaro Linux.
+ Bootstrap scripts for building Gozjaro from LFS.
 

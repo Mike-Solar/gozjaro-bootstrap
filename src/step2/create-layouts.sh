@@ -11,7 +11,7 @@ mkdir -pv $LFS/usr/{include,libexec,share,src}
 mkdir -pv $LFS/usr/share/{doc,info,locale,man}
 mkdir -pv $LFS/usr/share/{misc,terminfo,zoneinfo}
 mkdir -pv $LFS/var/{cache,lib,local,log,mail,opt,spool}
-mkdir -pv $LFS/var/lib/{color,misc,locate}
+mkdir -pv $LFS/var/lib/{color,misc,locate,tmp}
 
 # Create symlinks for root-level directories
 for i in bin lib sbin; do

@@ -14,12 +14,12 @@ if [ "$(id -u)" != "0" ]; then
     echo -e "\033[0;31m This script requires root privileges. Please run as root or use sudo. \033[0m"
     exit 1
 fi
-# 设置颜色输出
+# Set color variables for output
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-# 检查是否安装了 wget 和 parallel
+# Check if wget and parallel are installed
 if ! command -v wget &> /dev/null || ! command -v parallel &> /dev/null; then
     echo -e "${RED}Please install wget and parallel.${NC}"
     echo -e "On Debian/Ubuntu you can use: sudo apt-get install parallel wget"
@@ -27,9 +27,9 @@ if ! command -v wget &> /dev/null || ! command -v parallel &> /dev/null; then
     echo -e "On Arch Linux you can use: sudo pacman -S parallel wget"
     exit 1
 fi
-# 设置 LFS 挂载点
+# Set LFS mount point
 export LFS="/mnt/lfs"
-# 创建必要的目录
+# Create necessary directories
 SOURCES_DIR="$LFS/sources"
 
 if [ ! -d "$SOURCES_DIR" ]; then
@@ -43,7 +43,7 @@ cd "$SOURCES_DIR" || exit 1
 
 echo -e "${GREEN}Downloading LFS package list...${NC}"
 
-# 下载包含所有源码包链接的文件
+# Download the file containing all source package links
 wget -q https://www.linuxfromscratch.org/lfs/view/stable/wget-list-sysv
 
 if [ ! -f wget-list-sysv ]; then
@@ -91,6 +91,7 @@ download_package() {
     return 1
 }
 
+# Export the download function and variables for parallel execution
 export -f download_package
 export GREEN RED NC FAILED_DIR MAX_RETRIES
 

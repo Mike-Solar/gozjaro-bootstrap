@@ -31,7 +31,12 @@ PARTITION="${DISK}${PARTITION_NUMBER}"
 
 # Format partition
 echo -e "${GREEN}Formatting partition...${NC}"
-mkfs.ext4 $PARTITION
+if [ -b "${PARTITION}" ]; then
+    mkfs -v -t ext4 "${PARTITION}"
+else
+    echo -e "${RED}Error: Partition ${PARTITION} does not exist${NC}"
+    exit 1
+fi
 
 # Create mount point
 echo -e "${GREEN}Creating mount point...${NC}"
@@ -40,7 +45,7 @@ mkdir -pv $LFS
 
 # Mount partition
 echo -e "${GREEN}Mounting partition...${NC}"
-mount $PARTITION $LFS
+mount -v -t ext4 /dev/${PARTITION##*/} $LFS
 
 # Set LFS environment variable
 echo -e "${GREEN}Setting LFS environment variable...${NC}"

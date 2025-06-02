@@ -12,7 +12,7 @@ echo "Please set a password for the LFS user:"
 passwd lfs
 
 # Set permissions for the LFS directories
-chown -v lfs $LFS/{usr{,/*},lib,var,etc,bin,sbin,tools}
+chown -v lfs $LFS/{usr{,/*},lib,var{,/*},etc,bin,sbin,tools}
 case $(uname -m) in
   x86_64) chown -v lfs $LFS/lib64 ;;
 esac

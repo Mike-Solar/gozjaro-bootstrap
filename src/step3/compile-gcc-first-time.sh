@@ -2,22 +2,37 @@
 
 export LFS=/mnt/lfs
 export LFS_TGT=$(uname -m)-gozjaro-linux-gnu
+export LC_ALL=POSIX
 
-# Set the locale to POSIX
-cd $LFS/sources || exit 1
+cd "$LFS/sources" || exit 1
 
 # Extract and prepare the source packages
-tar xf ../gcc-*.tar.xz
-mv -v gcc-* gcc
+GCC_ARCHIVE=$(ls gcc-*.tar.xz)
+if [ ! -f "$GCC_ARCHIVE" ]; then
+    echo "Error: GCC archive not found"
+    exit 1
+fi
+
+tar xf "$GCC_ARCHIVE"
+GCC_DIR=$(ls -d gcc-*/ | head -n1)
+mv -v "$GCC_DIR" gcc
 cd gcc || exit 1
 
 # Prepare the GCC source directory
-tar xf ../mpfr-*.tar.xz
-mv -v mpfr-* mpfr
-tar xf ../gmp-*.tar.xz
-mv -v gmp-* gmp
-tar xf ../mpc-*.tar.gz
-mv -v mpc-* mpc
+for pkg in mpfr gmp mpc; do
+    archive=$(ls ../"$pkg"-*.tar.*)
+    if [ ! -f "$archive" ]; then
+        echo "Error: $pkg archive not found"
+        exit 1
+    fi
+    tar xf "$archive"
+    dir=$(ls -d "$pkg"-*/ | head -n1)
+    if [ -z "$dir" ]; then
+        echo "Error: $pkg directory not found after extraction"
+        exit 1
+    fi
+    mv -v "$dir" "$pkg"
+done
 
 # Create a symbolic link for the GMP directory
 case $(uname -m) in

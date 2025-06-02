@@ -41,6 +41,9 @@ fi
 mkdir -p "$SOURCES_DIR"
 cd "$SOURCES_DIR" || exit 1
 
+# Set permissions for the sources directory
+chmod -v a+wt "$SOURCES_DIR"
+
 echo -e "${GREEN}Downloading LFS package list...${NC}"
 
 # Download the file containing all source package links

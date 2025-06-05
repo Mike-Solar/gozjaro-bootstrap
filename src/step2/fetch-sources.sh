@@ -1,4 +1,5 @@
 #!/bin/bash
+
 # LFS Source Fetch Script
 # You need to install the `parallel` package to run this script.
 # This script downloads the source packages for Linux From Scratch (LFS) using wget and parallel.
@@ -44,18 +45,18 @@ cd "$SOURCES_DIR" || exit 1
 # Set permissions for the sources directory
 chmod -v a+wt "$SOURCES_DIR"
 
-echo -e "${GREEN}Downloading LFS package list...${NC}"
+echo -e "${GREEN}Using custom package list...${NC}"
 
-# Download the file containing all source package links
-wget -q https://www.linuxfromscratch.org/lfs/view/stable/wget-list-sysv
+# Use custom package list
+WGET_LIST="$(dirname "$0")/package-list.txt"
 
-if [ ! -f wget-list-sysv ]; then
-    echo -e "${RED}Failed to download package list${NC}"
+if [ ! -f "$WGET_LIST" ]; then
+    echo -e "${RED}Custom package list not found: $WGET_LIST${NC}"
     exit 1
 fi
 
 # Count the total number of files to download
-TOTAL_FILES=$(wc -l < wget-list-sysv)
+TOTAL_FILES=$(wc -l < "$WGET_LIST")
 CURRENT_FILE=0
 
 echo -e "${GREEN}Starting to download $TOTAL_FILES source packages...${NC}"
@@ -101,7 +102,7 @@ export GREEN RED NC FAILED_DIR MAX_RETRIES
 echo -e "${GREEN}Using $PARALLEL_DOWNLOADS parallel download processes${NC}"
 
 # 使用 parallel 进行并行下载
-cat wget-list-sysv | parallel -j $PARALLEL_DOWNLOADS download_package
+cat "$WGET_LIST" | parallel -j $PARALLEL_DOWNLOADS download_package
 
 # 检查是否有失败的下载
 if [ -f "$FAILED_DIR/failed_downloads.txt" ]; then

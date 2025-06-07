@@ -1,0 +1,36 @@
+--- bash-5.2/builtins/mkbuiltins.c.orig
++++ bash-5.2/builtins/mkbuiltins.c
+@@ -59,10 +59,32 @@
+ #include <stdarg.h>
+ #endif
+
+-static char *xmalloc (), *xrealloc ();
++static char *xmalloc (size_t);
++static char *xrealloc (void *, size_t);
+
+-static void file_error ();
+-static void line_error ();
++static void file_error (const char *);
++static void line_error (void *, const char *, const char *, const char *);
++
++static void write_file_headers (FILE *, FILE *);
++static void write_file_footers (FILE *, FILE *);
++static void write_longdocs (FILE *, BUILTIN **);
++static void extract_info (const char *, FILE *, FILE *);
++static void write_builtins (DEF_FILE *, FILE *, FILE *);
++static void free_defs (DEF_FILE *);
++static void remove_trailing_whitespace (char *);
++static void must_be_building (const char *, DEF_FILE *);
++static void add_documentation (DEF_FILE *, char *);
++static int is_special_builtin (const char *);
++static int is_assignment_builtin (const char *);
++static int is_localvar_builtin (const char *);
++static int is_posix_builtin (const char *);
++static int is_arrayvar_builtin (const char *);
++static void write_ifdefs (FILE *, char **);
++static void write_endifs (FILE *, char **);
++static void write_documentation (FILE *, char **, int, int);
++static int write_helpfiles (BUILTIN **);
+
+ #define savestring(x)        strcpy (xmalloc (1 + strlen (x)), (x))
+

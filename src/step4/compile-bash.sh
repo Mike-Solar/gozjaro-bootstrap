@@ -5,13 +5,13 @@ export LFS=/mnt/lfs
 export LC_ALL=POSIX
 export LFS_TGT=$(uname -m)-gozjaro-linux-gnu
 
-cp -v ../bash-5.2_p15-random-ub.patch "$LFS/sources"
-cp -v ../bash-5.2_p21-wpointer-to-int.patch "$LFS/sources"
-cp -v ../bash-5.2_p32-memory-leaks.patch "$LFS/sources"
-cp -v ../bash-5.2_p32-invalid-continuation-byte-ignored-as-delimiter-1.patch "$LFS/sources"
-cp -v ../bash-5.2_p32-invalid-continuation-byte-ignored-as-delimiter-2.patch "$LFS/sources"
-cp -v ../bash-5.2_p32-erroneous-delimiter-pushback-condition.patch "$LFS/sources"
-
+cp -v bash-5.2_p15-random-ub.patch "$LFS/sources"
+cp -v bash-5.2_p21-wpointer-to-int.patch "$LFS/sources"
+cp -v bash-5.2_p32-memory-leaks.patch "$LFS/sources"
+cp -v bash-5.2_p32-invalid-continuation-byte-ignored-as-delimiter-1.patch "$LFS/sources"
+cp -v bash-5.2_p32-invalid-continuation-byte-ignored-as-delimiter-2.patch "$LFS/sources"
+cp -v bash-5.2_p32-erroneous-delimiter-pushback-condition.patch "$LFS/sources"
+cp -v bash-5.2-mkbuiltins-ansi-prototypes.patch "$LFS/sources"
 
 cd "$LFS/sources" || exit 1
 
@@ -34,6 +34,7 @@ patch -Np0 -i ../bash-5.2_p32-memory-leaks.patch
 patch -Np0 -i ../bash-5.2_p32-invalid-continuation-byte-ignored-as-delimiter-1.patch
 patch -Np0 -i ../bash-5.2_p32-invalid-continuation-byte-ignored-as-delimiter-2.patch
 patch -Np0 -i ../bash-5.2_p32-erroneous-delimiter-pushback-condition.patch
+patch -Np0 -i ../bash-5.2-mkbuiltins-ansi-prototypes.patch
 
 _bashconfig=(-DDEFAULT_PATH_VALUE=\'\"/usr/local/sbin:/usr/local/bin:/usr/bin\"\'
                -DSTANDARD_UTILS_PATH=\'\"/usr/bin\"\'

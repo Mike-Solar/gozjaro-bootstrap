@@ -1,7 +1,8 @@
-#!/bin/bash
+#!/bin/sh
 # A script to list version numbers of critical development tools
 # If you have tools installed in other directories, adjust PATH here AND
 # in ~lfs/.bashrc (section 4.4) as well.
+
 LC_ALL=C
 PATH=/usr/bin:/bin
 
@@ -88,6 +89,7 @@ if printf "int main(){}" | g++ -x c++ -; then
 else
     echo "ERROR: g++ does NOT work"
 fi
+
 rm -f a.out
 
 if [ "$(nproc)" = "" ]; then

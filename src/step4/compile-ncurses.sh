@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Set environment variables
 export LFS=/mnt/lfs

@@ -56,7 +56,7 @@ cd build
  --enable-new-dtags \
  --enable-default-hash-style=gnu
 make -j8
-make install
+sudo make install
 cd ../..
 # GCC
 tar xvf gcc-14.2.0.tar.xz
@@ -100,4 +100,4 @@ cd build
  --disable-libstdcxx \
  --enable-languages=c,c++
 make -j8
-make install
+sudo make install

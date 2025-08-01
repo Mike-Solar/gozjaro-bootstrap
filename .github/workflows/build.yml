@@ -1,0 +1,16 @@
+on: [push]
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            - name: clone
+              run: git clone https://github.com/Mike-Solar/gozjaro-bootstrap.git
+            - name: run
+              run: cd gozjaro-bootstrap && bash bootstrap.sh
+            - name: pack
+              run: sudo tar cJvf lfs.tar.xz /mnt/lfs
+            - name: upload
+              uses: actions/upload-artifact@v4
+              with:
+                name: lfs
+                path: ./lfs.tar.xz

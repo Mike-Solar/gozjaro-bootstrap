@@ -1,23 +1,23 @@
 #/bin/bash
 # Prepare the environment
 umask 022
-mkdir /mnt/lfs
+sudo mkdir /mnt/lfs
 export LFS=/mnt/lfs
-chown root:root $LFS
+sudo chown root:root $LFS
 chmod 755 $LFS
-mkdir -v $LFS/sources
-chmod -v a+wt $LFS/sources
-chown root:root $LFS/sources/*
-mkdir -pv $LFS/{etc,var} $LFS/usr/{bin,lib,sbin}
+sudo mkdir -v $LFS/sources
+sudo chmod -v a+wt $LFS/sources
+sudo chown root:root $LFS/sources/*
+sudo mkdir -pv $LFS/{etc,var} $LFS/usr/{bin,lib,sbin}
 for i in bin lib sbin; do
- ln -sv usr/$i $LFS/$i
+ sudo ln -sv usr/$i $LFS/$i
 done
 case $(uname -m) in
- x86_64) mkdir -pv $LFS/lib64 ;;
+ x86_64) sudo mkdir -pv $LFS/lib64 ;;
 esac
-mkdir -pv $LFS/tools
-set +h
-umask 022
+sudo mkdir -pv $LFS/tools
+sudo set +h
+sudo umask 022
 LC_ALL=POSIX
 LFS_TGT=$(uname -m)-lfs-linux-gnu
 PATH=/usr/bin
@@ -57,7 +57,7 @@ cd build
  --enable-default-hash-style=gnu
 make -j8
 make install
-
+cd ../..
 # GCC
 tar xvf gcc-14.2.0.tar.xz
 tar xvf mpfr-4.2.1.tar.xz
@@ -99,3 +99,5 @@ cd build
  --disable-libvtv \
  --disable-libstdcxx \
  --enable-languages=c,c++
+make -j8
+make install

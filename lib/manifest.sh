@@ -300,6 +300,56 @@ manifest_get_download_url() {
     _manifest_resolve_url "$raw_url"
 }
 
+# Mirror an upstream URL when GOZJARO_SOURCE_MIRROR is set.
+# Reads config/mirror-map.tsv (or $GOZJARO_MIRROR_MAP): one entry per line,
+#   <origin-url-prefix>\t<mirror-url-prefix>
+# The longest matching origin prefix wins; the path tail is preserved.
+# Anything unmatched, or when GOZJARO_SOURCE_MIRROR != ustc, echoes the URL
+# unchanged. Callers SHOULD still fall back to upstream on download failure.
+# Usage: manifest_mirror_url <url>
+manifest_mirror_url() {
+    local url="$1"
+    local map="${GOZJARO_MIRROR_MAP:-${GOZJARO_ROOT}/config/mirror-map.tsv}"
+
+    # No mirror selected, or no map file -> pass through.
+    case "${GOZJARO_SOURCE_MIRROR:-auto}" in
+        ustc) : ;;
+        *) printf '%s\n' "$url"; return 0 ;;
+    esac
+    [ -r "$map" ] || { printf '%s\n' "$url"; return 0; }
+
+    local best_origin="" best_mirror="" best_len=-1 origin mirror
+    # Skip comments/blank lines; split on tab (fall back to 2-space collapse
+    # in case the map was saved without tabs).
+    while IFS= read -r line || [ -n "$line" ]; do
+        case "$line" in
+            \#*|'') continue ;;
+        esac
+        if [[ "$line" == *$'\t'* ]]; then
+            origin="${line%%$'\t'*}"
+            mirror="${line#*$'\t'}"
+        else
+            origin="$(printf '%s' "$line" | awk '{print $1}')"
+            mirror="$(printf '%s' "$line" | awk '{print $2}')"
+        fi
+        [ -n "$origin" ] && [ -n "$mirror" ] || continue
+        if [[ "$url" == "$origin"* ]]; then
+            local olen=${#origin}
+            if [ "$olen" -gt "$best_len" ]; then
+                best_len=$olen
+                best_origin="$origin"
+                best_mirror="$mirror"
+            fi
+        fi
+    done < "$map"
+
+    if [ -n "$best_origin" ]; then
+        printf '%s\n' "${best_mirror}${url#"$best_origin"}"
+    else
+        printf '%s\n' "$url"
+    fi
+}
+
 # Get the source filename for a package
 # Usage: manifest_get_filename <package-name> [category ...]
 manifest_get_filename() {

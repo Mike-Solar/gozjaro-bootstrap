@@ -1,0 +1,47 @@
+# Gozjaro source-mirror rewrite table.
+# One tab-separated entry per line:  <origin-url-prefix> \t <mirror-url-prefix>
+#
+# Applied ONLY when GOZJARO_SOURCE_MIRROR=ustc (see config/lfs.env). The longest
+# matching origin prefix wins; anything unmatched is served straight from
+# upstream. The downloader always falls back to the upstream URL if the mirror
+# 404s / fails, so a wrong entry can never break a build — it just misses the
+# cache hit.
+#
+# NOTE (verify from your own network): these prefixes follow USTC's public
+# mirror host layout. USTC blocks datacenter egress IPs, so the bytes can't be
+# confirmed here — spot-check a couple with `curl -I` from inside China and
+# the fallback will cover the rest.
+
+# GNU (ftpmirror + ftp.gnu both map into USTC's /gnu tree, incl. glibc/gcc subfolders)
+https://ftpmirror.gnu.org/	https://mirrors.ustc.edu.cn/gnu/
+https://ftp.gnu.org/gnu/	https://mirrors.ustc.edu.cn/gnu/
+
+# Savannah-hosted (acl, attr, libpipeline, man-db)
+https://download.savannah.gnu.org/releases/	https://mirrors.ustc.edu.cn/savannah/releases/
+
+# kernel.org (/pub/linux, /pub/software, generic)
+https://www.kernel.org/pub/linux/	https://mirrors.ustc.edu.cn/kernel/linux/
+https://www.kernel.org/pub/software/	https://mirrors.ustc.edu.cn/kernel/software/
+https://www.kernel.org/	https://mirrors.ustc.edu.cn/kernel/
+
+# sourceware.org (binutils, elfutils, ...)
+https://sourceware.org/	https://mirrors.ustc.edu.cn/sourceware/
+
+# curl.se, cpan.org, python.org, PyPI
+https://curl.se/download/	https://mirrors.ustc.edu.cn/curl/
+https://www.cpan.org/	https://mirrors.ustc.edu.cn/cpan/
+https://www.python.org/ftp/	https://mirrors.ustc.edu.cn/python/ftp/
+https://files.pythonhosted.org/packages/	https://mirrors.ustc.edu.cn/pypi/packages/
+https://pypi.org/packages/	https://mirrors.ustc.edu.cn/pypi/packages/
+
+# Debian source pool (expect / procps / psmisc .orig tarballs)
+https://deb.debian.org/debian/pool/	https://mirrors.ustc.edu.cn/debian/pool/
+
+# GitHub (release assets + repo archives). Preserves the path tail.
+https://github.com/	https://mirrors.ustc.edu.cn/github/
+
+# Assorted single-host upstreams USTC mirrors
+https://distfiles.macports.org/	https://mirrors.ustc.edu.cn/macports/
+https://www.greenwoodsoftware.com/	https://mirrors.ustc.edu.cn/greenwoodsoftware/
+https://invisible-mirror.net/archives/	https://mirrors.ustc.edu.cn/invisible-mirror/archives/
+https://dbus.freedesktop.org/	https://mirrors.ustc.edu.cn/dbus/

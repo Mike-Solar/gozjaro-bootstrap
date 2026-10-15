@@ -36,7 +36,7 @@ packages:
     dependencies: []
 
   - name: autoconf
-    version: "2.78"
+    version: "2.73"
     category: base
     source:
       url: https://ftpmirror.gnu.org/autoconf/autoconf-2.73.tar.xz
@@ -173,7 +173,7 @@ packages:
         type: sha256
         value: ""
     patches:
-      - name: coreutils-9.6-i18n-1.patch
+      - name: coreutils-9.11-i18n-1.patch
         url: https://www.linuxfromscratch.org/patches/lfs/13.1-rc2/coreutils-9.11-i18n-1.patch
         strip: 1
     build:
@@ -278,7 +278,7 @@ packages:
         type: sha256
         value: d082bf340fdb7a85b1e4e5df4d967d0140835db34a8a035c3102abb5eb62d450
     patches:
-      - name: expect-5.45.4-gcc14-1.patch
+      - name: expect-5.45.4-gcc15-1.patch
         url: https://www.linuxfromscratch.org/patches/lfs/13.1-rc2/expect-5.45.4-gcc15-1.patch
         strip: 0
     build:
@@ -299,7 +299,7 @@ packages:
     version: "5.48"
     category: base
     source:
-      url: https://astron.com/pub/file/file-5.48.tar.gz
+      url: https://github.com/file/file/archive/refs/tags/FILE5_48/file-FILE5_48.tar.gz
       checksum:
         type: sha256
         value: ""
@@ -434,7 +434,7 @@ packages:
     dependencies: []
 
   - name: glibc
-    version: "2.47"
+    version: "2.44"
     category: base
     source:
       url: https://ftpmirror.gnu.org/glibc/glibc-2.44.tar.xz
@@ -442,7 +442,7 @@ packages:
         type: sha256
         value: ""
     patches:
-      - name: glibc-2.41-fhs-1.patch
+      - name: glibc-fhs-1.patch
         url: https://www.linuxfromscratch.org/patches/lfs/13.1-rc2/glibc-fhs-1.patch
         strip: 1
     build:
@@ -583,7 +583,7 @@ packages:
         type: sha256
         value: ""
     patches:
-      - name: kbd-2.7.1-backspace-1.patch
+      - name: kbd-2.10.0-backspace-1.patch
         url: https://www.linuxfromscratch.org/patches/lfs/13.1-rc2/kbd-2.10.0-backspace-1.patch
         strip: 0
     build:

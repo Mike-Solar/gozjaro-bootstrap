@@ -95,7 +95,7 @@ build_glibc() {
             ;;
     esac
 
-    apply_patch "$src" "glibc-2.41-fhs-1.patch"
+    apply_patch "$src" "glibc-fhs-1.patch"
 
     mkdir -v build && cd build
     echo "rootsbindir=/usr/sbin" > configparms

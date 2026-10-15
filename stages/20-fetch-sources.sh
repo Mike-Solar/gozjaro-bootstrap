@@ -103,13 +103,112 @@ download_patches_for_package() {
 }
 
 # ---------------------------------------------------------------------------
+# Mirror + fallback download helper
+# ---------------------------------------------------------------------------
+# When GOZJARO_SOURCE_MIRROR=ustc, candidate URLs are [mirror, upstream];
+# otherwise just [upstream]. This makes a wrong mirror-map entry a cache miss
+# (never a build failure). LFS patches are never mirrored.
+#
+# Usage: download_url <dest-filename> <url> [upstream-or-not]
+#   $3 = "mirror" -> compute mirror candidate and try it FIRST, then fall back
+#                    to the given URL (upstream).
+#   $3 = "direct" -> try the URL as-is.
+# Returns 0 on success, 1 if every candidate failed.
+download_url() {
+    local fn="$1" url="$2" mode="${3:-direct}"
+    local candidates=()
+    if [ "$mode" = "mirror" ]; then
+        candidates+=("$(manifest_mirror_url "$url")")
+        [ "${candidates[0]}" != "$url" ] || candidates=()
+    fi
+    candidates+=("$url")
+
+    local c
+    for c in "${candidates[@]}"; do
+        [ -z "$c" ] && continue
+        if wget --timeout=30 --tries=2 --progress=bar:force:noscroll \
+                -U "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
+                -O "$fn" "$c" 2>/dev/null; then
+            # Guard: a 200 with an empty body (seen when a mirror's CDN blocks
+            # the egress IP) still satisfies wget — reject it so we fall back.
+            if [ -s "$fn" ]; then
+                return 0
+            fi
+            logline "    empty response from ${c##*/}; falling back"
+            rm -f -- "$fn" 2>/dev/null || true
+        fi
+        logline "    retry-next candidate failed: ${c##*/}"
+    done
+    return 1
+}
+
+# ---------------------------------------------------------------------------
 # Main download loop
 # ---------------------------------------------------------------------------
+
+MIRROR_ACTIVE=0
+case "${GOZJARO_SOURCE_MIRROR:-auto}" in
+    ustc) MIRROR_ACTIVE=1 ;;
+esac
+[ "$MIRROR_ACTIVE" = "1" ] && logline "source mirror: USTC ($GOZJARO_MIRROR_MAP), with upstream fallback"
+[ "$MIRROR_ACTIVE" = "1" ] && [ ! -r "${GOZJARO_MIRROR_MAP:-/dev/null}" ] && {
+    logline "WARNING: mirror map not readable: ${GOZJARO_MIRROR_MAP}; using upstream directly"
+}
 
 source_urls=$(get_source_urls)
 if [ -z "$source_urls" ]; then
     die "No source URLs found. Check config/packages/ or config/packages.txt"
 fi
+
+# ---------------------------------------------------------------------------
+# LFS patch download pass
+# ---------------------------------------------------------------------------
+# Collect every patch URL referenced by the package manifests (package-level
+# `patches:` blocks) plus the shared entries in patches.yaml, then fetch each
+# into $SOURCES_DIR. These are applied verbatim by the build stages
+# (30-cross-toolchain / 60-final-system). LFS patches are NOT mirrored — they
+# stay on linuxfromscratch.org. Failures here are hard: the glibc FHS patch in
+# particular is applied without `|| true`, so a missing patch aborts the build.
+download_all_patches() {
+    local all_urls
+    all_urls=$({
+        # Package-level patch URLs from every category manifest.
+        grep -rhoE 'url:[[:space:]]*https?://[^[:space:]]+\.patch' \
+            "${MANIFEST_DIR}"/*.yaml "${MANIFEST_DIR}"/*.yml 2>/dev/null \
+            | sed -E 's/^url:[[:space:]]*//'
+        # Shared/global patch URLs from patches.yaml (top-level `patches:` key).
+        if [ -f "${MANIFEST_DIR}/patches.yaml" ]; then
+            grep -hoE 'url:[[:space:]]*https?://[^[:space:]]+\.patch' \
+                "${MANIFEST_DIR}/patches.yaml" 2>/dev/null \
+                | sed -E 's/^url:[[:space:]]*//'
+        fi
+    } | sort -u)
+
+    local count purl pfn pdst
+    count=$(printf '%s\n' "$all_urls" | grep -cve '^\s*$' || true)
+    logline "Downloading $count LFS patch files (upstream, not mirrored)"
+    local pfail=0
+    while IFS= read -r purl; do
+        [ -z "$purl" ] && continue
+        pfn="${purl##*/}"
+        pdst="${SOURCES_DIR}/${pfn}"
+        if [ -f "$pdst" ]; then
+            logline "  patch: $pfn (cached)"
+            continue
+        fi
+        if wget --timeout=30 --tries=2 --progress=bar:force:noscroll \
+                -U "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
+                -O "$pdst" "$purl" 2>/dev/null; then
+            logline "  patch: $pfn ok"
+        else
+            logline "  patch: $pfn FAILED"
+            pfail=1
+        fi
+    done <<< "$all_urls"
+    [ "$pfail" = "0" ] || die "one or more LFS patches failed to download; check network"
+}
+
+download_all_patches
 
 remove_invalid_cached_sources() {
     for mfile in "${MANIFEST_DIR}"/*.yaml "${MANIFEST_DIR}"/*.yml; do
@@ -150,6 +249,14 @@ echo "$source_urls" | grep -vE '^\s*$' | while IFS= read -r url; do
     idx=$((idx + 1))
     fn="${url##*/}"
 
+    # Patches stay on upstream (LFS does not mirror them). Tarballs use the
+    # mirror when GOZJARO_SOURCE_MIRROR=ustc, falling back to upstream.
+    if [[ "$url" == *.patch ]]; then
+        mode="direct"
+    else
+        [ "$MIRROR_ACTIVE" = "1" ] && mode="mirror" || mode="direct"
+    fi
+
     logline "[$idx/$total] fetching $fn"
     if [ -f "$fn" ]; then
         logline "[$idx/$total] $fn already exists, skipping download"
@@ -157,10 +264,7 @@ echo "$source_urls" | grep -vE '^\s*$' | while IFS= read -r url; do
     else
         ok=0
         for try in 1 2 3; do
-            if wget --timeout=30 --tries=1 \
-                    --progress=bar:force:noscroll \
-                    -U "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
-                    "$url"; then
+            if download_url "$fn" "$url" "$mode"; then
                 ok=1
                 logline "[$idx/$total] ok $fn"
                 break

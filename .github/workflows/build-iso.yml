@@ -14,6 +14,13 @@ on:
         description: 'Gozpak repository URL (only for binary mode)'
         type: string
         default: ''
+      source_mirror:
+        description: 'Source tarball mirror (upstream auto, or USTC for CN runners; source mode only)'
+        type: choice
+        default: auto
+        options:
+          - auto
+          - ustc
   push:
     branches: [main, master]
     paths:
@@ -51,11 +58,15 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             BUILD_MODE="${{ github.event.inputs.build_mode || 'source' }}"
+            SOURCE_MIRROR="${{ github.event.inputs.source_mirror || 'auto' }}"
           else
             BUILD_MODE="source"
+            SOURCE_MIRROR="auto"
           fi
           echo "BUILD_MODE=$BUILD_MODE" >> $GITHUB_ENV
+          echo "SOURCE_MIRROR=$SOURCE_MIRROR" >> $GITHUB_ENV
           echo "==> Build mode: $BUILD_MODE"
+          echo "==> Source mirror: $SOURCE_MIRROR"
 
       - name: Setup LFS directory
         run: |
@@ -109,7 +120,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.LFS }}/sources
-          key: sources-${{ hashFiles('config/packages/**/*.yaml', 'config/packages/**/*.yml', 'config/packages.txt', 'config/packages/*.txt') }}
+          key: sources-${{ hashFiles('config/packages/*.yaml', 'config/packages/*.yml', 'config/packages/patches.yaml', 'config/mirror-map.tsv', 'config/packages.txt', 'config/base-packages.txt') }}
           restore-keys: |
             sources-
 
@@ -226,10 +237,16 @@ jobs:
           echo "==> Starting Gozjaro LFS build (source mode)"
           echo "    LFS: ${{ env.LFS }}"
           echo "    Jobs: ${{ env.MAKEFLAGS }}"
+          echo "    Mirror: ${{ env.SOURCE_MIRROR }}"
           echo "    Started: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
-          # Use sudo - the build requires root privileges
-          sudo "./build.sh" all
+          # lfs.env already honours an externally-set GOZJARO_SOURCE_MIRROR
+          # (: "${GOZJARO_SOURCE_MIRROR:=auto}"), so exporting it here is
+          # enough to switch tarball downloads onto USTC with upstream
+          # fallback. Patches are never mirrored.
+          sudo GOZJARO_SOURCE_MIRROR="${{ env.SOURCE_MIRROR }}" \
+               GOZJARO_MIRROR_MAP="${{ github.workspace }}/config/mirror-map.tsv" \
+               "./build.sh" all
 
           echo "==> Build completed: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 

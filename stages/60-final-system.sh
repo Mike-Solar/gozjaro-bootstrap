@@ -37,7 +37,7 @@ b_tzdata() {
 
 b_glibc_final() {
     local src="$1"
-    apply_patch "$src" "glibc-2.41-fhs-1.patch"
+    apply_patch "$src" "glibc-fhs-1.patch"
     mkdir -v build && cd build
     echo "rootsbindir=/usr/sbin" > configparms
     ../configure --prefix=/usr \
@@ -151,7 +151,7 @@ b_tcl() {
 }
 
 b_expect() {
-    apply_patch "$PWD" "expect-5.45.4-gcc14-1.patch" || true
+    apply_patch "$PWD" "expect-5.45.4-gcc15-1.patch" || true
     python3 -c 'print("ok")' >/dev/null
     ./configure --prefix=/usr --with-tcl=/usr/lib --enable-shared --disable-rpath \
         --mandir=/usr/share/man --with-tclinclude=/usr/include
@@ -519,8 +519,8 @@ b_coreutils_final() {
     # turn needs gnulib macros that aren't always bundled in the tarball.
     # Make it opt-in via GOZJARO_COREUTILS_I18N=1 so the core build is robust.
     if [ "${GOZJARO_COREUTILS_I18N:-0}" = "1" ] && \
-       [ -f "$SOURCES_DIR/coreutils-9.6-i18n-1.patch" ]; then
-        apply_patch "$PWD" "coreutils-9.6-i18n-1.patch"
+       [ -f "$SOURCES_DIR/coreutils-9.11-i18n-1.patch" ]; then
+        apply_patch "$PWD" "coreutils-9.11-i18n-1.patch"
         autoreconf -fiv
     else
         log "skip coreutils i18n patch (set GOZJARO_COREUTILS_I18N=1 to enable)"
@@ -562,7 +562,7 @@ b_iproute2() {
 }
 
 b_kbd() {
-    apply_patch "$PWD" "kbd-2.7.1-backspace-1.patch" || true
+    apply_patch "$PWD" "kbd-2.10.0-backspace-1.patch" || true
     [ -f configure ] && sed -i '/RESIZECONS_PROGS=/s/yes/no/' configure || true
     [ -f contrib/man/man8/Makefile.in ] && \
         sed -i 's/resizecons.8 //' contrib/man/man8/Makefile.in || true

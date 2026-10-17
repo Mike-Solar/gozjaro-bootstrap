@@ -844,10 +844,13 @@ packages:
     version: "4.0.7"
     category: base
     source:
-      url: https://deb.debian.org/debian/pool/main/p/procps/procps_4.0.7.orig.tar.xz
+      # LFS (ch.6) uses the SourceForge release tarball; the old Debian pool
+      # ".orig" name (procps_4.0.7.orig) broke the stage-60 glob
+      # 'procps-ng-*.tar.*'. md5 from the LFS md5sums page.
+      url: https://sourceforge.net/projects/procps-ng/files/Production/procps-ng-4.0.7.tar.xz
       checksum:
-        type: sha256
-        value: 36dd88bb129cbaad5c5481cddde6dd16ab533e677cf99c424f0bb63f555f7e47
+        type: md5
+        value: "d47bdda51c4bd595a1ab21b8e538bcb3"
     build:
       system: autotools
       configure:
@@ -1015,10 +1018,13 @@ packages:
     version: "23.7"
     category: base
     source:
-      url: https://deb.debian.org/debian/pool/main/p/psmisc/psmisc_23.7.orig.tar.xz
+      # LFS (ch.6) uses the SourceForge release tarball; the old Debian pool
+      # ".orig" name (psmisc_23.7.orig) broke the stage-60 glob
+      # 'psmisc-*.tar.*'. md5 from the LFS md5sums page.
+      url: https://sourceforge.net/projects/psmisc/files/psmisc/psmisc-23.7.tar.xz
       checksum:
-        type: sha256
-        value: 58c55d9c1402474065adae669511c191de374b0871eec781239ab400b907c327
+        type: md5
+        value: "53eae841735189a896d614cba440eb10"
     build:
       system: autotools
       configure:
@@ -1105,4 +1111,63 @@ packages:
       configure:
         - -DCMAKE_INSTALL_PREFIX=/usr
       install_check: bsdtar --version
+    dependencies: []
+
+  # ---- Packages required by stage 60 but previously missing from the manifest ----
+  # These have a build_pkg entry in stages/60-final-system.sh but no package block
+  # here, so stage 20 never fetched their tarballs and stage 60 died with
+  # "no tarball for prefix '...' in /sources". URLs/checksums from LFS 13.1-systemd.
+
+  - name: man-pages
+    version: "6.18"
+    category: base
+    source:
+      url: https://www.kernel.org/pub/linux/docs/man-pages/man-pages-6.18.tar.xz
+      checksum:
+        type: md5
+        value: "44915a91e4a28161dc421636a193fb3a"
+    build:
+      system: make
+      install_check: man --version
+    dependencies: []
+
+  - name: iproute2
+    version: "7.1.0"
+    category: base
+    source:
+      url: https://www.kernel.org/pub/linux/utils/net/iproute2/iproute2-7.1.0.tar.xz
+      checksum:
+        type: md5
+        value: "4f322144fb9a0877c5f9ef71b2f11180"
+    build:
+      system: make
+      install_check: ip --version
+    dependencies: []
+
+  - name: intltool
+    version: "0.51.0"
+    category: base
+    source:
+      # LFS-booked URL (launchpad); verified md5 against LFS 11.x packages page.
+      url: https://launchpad.net/intltool/trunk/0.51.0/+download/intltool-0.51.0.tar.gz
+      checksum:
+        type: md5
+        value: "12e517cac2b57a0121cda351570f1e63"
+    build:
+      system: autotools
+      install_check: intltool --version
+    dependencies: []
+
+  - name: check
+    version: "0.15.2"
+    category: base
+    source:
+      # LFS-booked URL (libcheck github release); verified md5 against LFS packages page.
+      url: https://github.com/libcheck/check/releases/download/0.15.2/check-0.15.2.tar.gz
+      checksum:
+        type: md5
+        value: "50fcafcecde5a380415b12e9c574e0b2"
+    build:
+      system: autotools
+      install_check: check --version
     dependencies: []

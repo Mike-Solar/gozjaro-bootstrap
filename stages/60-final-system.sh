@@ -604,7 +604,8 @@ b_vim() {
 }
 
 b_procps() {
-    ./configure --prefix=/usr --docdir=/usr/share/doc/procps-ng-4.0.5 --disable-static --disable-kill
+    # docdir must track the manifest version (4.0.7); a stale 4.0.5 was left over.
+    ./configure --prefix=/usr --docdir=/usr/share/doc/procps-ng-4.0.7 --disable-static --disable-kill
     make; make install
 }
 
@@ -797,7 +798,7 @@ build_pkg 60.shadow         "shadow-"       b_shadow
 build_pkg 60.gcc-final      "gcc-"          b_gcc_final
 build_pkg 60.ncurses-final  "ncurses-"      b_ncurses_final
 build_pkg 60.sed-final      "sed-"          b_sed_final
-build_pkg 60.psmisc         "psmisc-"       b_psmisc
+build_pkg 60.psmisc         "psmisc_"       b_psmisc
 build_pkg 60.gettext-final  "gettext-"      b_gettext_final
 build_pkg 60.bison-final    "bison-"        b_bison_final
 build_pkg 60.grep-final     "grep-"         b_grep_final
@@ -840,7 +841,7 @@ build_pkg 60.patch-final    "patch-"        b_patch_final
 build_pkg 60.tar-final      "tar-"          b_tar_final
 build_pkg 60.texinfo-final  "texinfo-"      b_texinfo_final
 build_pkg 60.vim            "vim-"          b_vim
-build_pkg 60.procps         "procps-ng-"    b_procps
+build_pkg 60.procps         "procps_"       b_procps
 build_pkg 60.util-linux-fin "util-linux-"   b_util_linux_final
 build_pkg 60.e2fsprogs      "e2fsprogs-"    b_e2fsprogs
 build_pkg 60.dbus           "dbus-"         b_dbus

@@ -65,7 +65,15 @@ b_coreutils() {
 }
 
 b_diffutils() {
-    ./configure --prefix=/usr --host="$LFS_TGT" --build="$(./build-aux/config.guess)"
+    # `gl_cv_func_strcasecmp_works` is an AC_RUN check (it compiles and RUNS a
+    # test program). During cross-compilation autoconf refuses to run target
+    # binaries and diffutils ships no cross fall-back value, so configure dies
+    # with "cannot run test program while cross compiling". We know strcasecmp
+    # works in glibc, so pre-seed the cache variable and skip the check.
+    ./configure --prefix=/usr \
+        --host="$LFS_TGT" \
+        gl_cv_func_strcasecmp_works=yes \
+        --build="$(./build-aux/config.guess)"
     make
     make DESTDIR="$LFS" install
 }

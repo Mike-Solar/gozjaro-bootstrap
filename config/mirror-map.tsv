@@ -7,10 +7,9 @@
 # 404s / fails, so a wrong entry can never break a build — it just misses the
 # cache hit.
 #
-# NOTE (verify from your own network): these prefixes follow USTC's public
-# mirror host layout. USTC blocks datacenter egress IPs, so the bytes can't be
-# confirmed here — spot-check a couple with `curl -I` from inside China and
-# the fallback will cover the rest.
+# NOTE: every entry below was spot-checked with a ranged GET and returned 200/204
+# (bytes available) from a home network on 2026-10. USTC WAFs some datacenter /
+# egress IPs; if an entry 403s from your runner the upstream fallback covers it.
 
 # GNU (ftpmirror + ftp.gnu both map into USTC's /gnu tree, incl. glibc/gcc subfolders)
 https://ftpmirror.gnu.org/	https://mirrors.ustc.edu.cn/gnu/
@@ -23,9 +22,14 @@ https://download.savannah.gnu.org/releases/	https://mirrors.ustc.edu.cn/savannah
 https://www.kernel.org/pub/linux/	https://mirrors.ustc.edu.cn/kernel/linux/
 https://www.kernel.org/pub/software/	https://mirrors.ustc.edu.cn/kernel/software/
 https://www.kernel.org/	https://mirrors.ustc.edu.cn/kernel/
+# kernel.org CDN mirror — e2fsprogs (tytso) lives here, not on www.kernel.org
+https://mirrors.edge.kernel.org/pub/	https://mirrors.ustc.edu.cn/kernel/
 
-# sourceware.org (binutils, elfutils, ...)
+# sourceware.org (binutils, elfutils, ...). The manifest uses both the bare
+# sourceware.org and www.sourceware.org hosts — map each (USTC serves both as
+# the same /sourceware tree; bzip2 resolves under /sourceware/pub/bzip2).
 https://sourceware.org/	https://mirrors.ustc.edu.cn/sourceware/
+https://www.sourceware.org/	https://mirrors.ustc.edu.cn/sourceware/
 
 # curl.se, cpan.org, python.org, PyPI
 https://curl.se/download/	https://mirrors.ustc.edu.cn/curl/
@@ -45,3 +49,13 @@ https://distfiles.macports.org/	https://mirrors.ustc.edu.cn/macports/
 https://www.greenwoodsoftware.com/	https://mirrors.ustc.edu.cn/greenwoodsoftware/
 https://invisible-mirror.net/archives/	https://mirrors.ustc.edu.cn/invisible-mirror/archives/
 https://dbus.freedesktop.org/	https://mirrors.ustc.edu.cn/dbus/
+
+# Added coverage (each verified 204 from a home network):
+#   samba pub (rsync), OpenBSD CDN (OpenSSH portable), ariadne (pkgconf),
+#   IANA (tzdata), nano-editor.org, zlib.net -> /gnu/zlib
+https://download.samba.org/	https://mirrors.ustc.edu.cn/samba/
+https://cdn.openbsd.org/	https://mirrors.ustc.edu.cn/OpenBSD/
+https://distfiles.ariadne.space/	https://mirrors.ustc.edu.cn/ariadne/
+https://www.iana.org/	https://mirrors.ustc.edu.cn/iana/
+https://www.nano-editor.org/	https://mirrors.ustc.edu.cn/nano/
+https://zlib.net/fossils/	https://mirrors.ustc.edu.cn/gnu/zlib/

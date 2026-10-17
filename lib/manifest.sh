@@ -87,7 +87,7 @@ _manifest_list_packages_bash() {
 _manifest_extract_names_bash() {
     local file="$1"
     # Match lines like "  - name: pkgname" but not "      - name: patchfile"
-    grep -E '^  - name:' "$file" 2>/dev/null | sed 's/^  - name:[[:space:]]*//' | sed 's/[[:space:]]*//g; s/"//g; s/'"'"'//g'
+    grep -E '^  - name:' "$file" 2>/dev/null | sed 's/^  - name:[[:space:]]*//' | sed 's/[[:space:]]*//g; s/"//g; s/'"'"'//g' || true
 }
 
 # List all packages from legacy packages.txt
@@ -117,14 +117,18 @@ manifest_get_field() {
 
     if _manifest_parser_available; then
         local json
-        json=$(_manifest_parse_with_python "$pkg_name" $categories 2>/dev/null)
-        if [ $? -ne 0 ] || [ -z "$json" ]; then
-            return 1
+        # `|| true`: "package not found" (parser exit 1) is a miss, not an error.
+        # Under `set -euo pipefail` a failing $(...) here would otherwise kill the
+        # calling subshell; callers test for empty output instead.
+        json=$(_manifest_parse_with_python "$pkg_name" $categories 2>/dev/null) || true
+        if [ -z "$json" ]; then
+            return 0
         fi
-        _manifest_json_get_field "$json" "$field"
+        _manifest_json_get_field "$json" "$field" || true
     else
-        _manifest_get_field_bash "$pkg_name" "$field" $categories
+        _manifest_get_field_bash "$pkg_name" "$field" $categories || true
     fi
+    return 0
 }
 
 # Extract a field from JSON output (uses grep/sed, no jq dependency)
@@ -294,10 +298,12 @@ manifest_get_download_url() {
     local raw_url
     raw_url=$(manifest_get_field "$pkg_name" "url" $categories)
     if [ -z "$raw_url" ]; then
-        return 1
+        # No URL is a miss (e.g. patch-name pseudo-entries); caller tests -n.
+        return 0
     fi
 
     _manifest_resolve_url "$raw_url"
+    return 0
 }
 
 # Mirror an upstream URL when GOZJARO_SOURCE_MIRROR is set.
@@ -470,14 +476,15 @@ manifest_list_patches() {
 
     if _manifest_parser_available; then
         local json
-        json=$(_manifest_parse_with_python "$pkg_name" $categories 2>/dev/null)
-        if [ $? -eq 0 ] && [ -n "$json" ]; then
+        json=$(_manifest_parse_with_python "$pkg_name" $categories 2>/dev/null) || true
+        if [ -n "$json" ]; then
             # Extract patches array from JSON
             echo "$json" | sed -n '/"patches"/,/]/p' | grep 'url' | sed 's/.*"url"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/'
         fi
     else
-        _manifest_list_patches_bash "$pkg_name" $categories
+        _manifest_list_patches_bash "$pkg_name" $categories || true
     fi
+    return 0
 }
 
 # Pure bash patch listing

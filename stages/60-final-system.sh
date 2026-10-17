@@ -798,7 +798,6 @@ b_systemd() {
         -Dglib=disabled \
         -Dgnutls=disabled \
         -Dopenssl=enabled \
-        -Dcryptolib=openssl \
         -Dp11kit=disabled \
         -Dlibcurl=disabled \
         -Dlibidn2=disabled \
@@ -824,14 +823,13 @@ b_systemd() {
         -Ddbus=enabled \
         -Dblkid=enabled \
         -Dkmod=enabled \
-        -Ddefault-hierarchy=unified \
         -Dsplit-bin=false \
         -Dfallback-hostname="${DISTRO_ID}" \
         -Ddefault-dnssec=no \
         -Ddefault-mdns=no \
         -Ddefault-llmnr=no \
         -Dinstall-sysconfdir=true \
-        -Ddocdir=/usr/share/doc/systemd-256
+        -Ddocdir=/usr/share/doc/systemd-261.2
 
     ninja
     ninja install
@@ -846,7 +844,7 @@ b_systemd() {
     # Enable default unit presets.
     systemctl preset-all 2>/dev/null || true
 
-    log "systemd 256 installed"
+    log "systemd 261.2 installed"
 }
 
 b_linux_firmware() {

@@ -22,7 +22,10 @@ set +h
 umask 022
 LFS=${LFS}
 LC_ALL=POSIX
-LFS_TGT=\$(uname -m)-${DISTRO_ID}-linux-gnu
+# Same triple the root side computes in lfs.env, so both sides agree.
+# LFS_TGT_VENDOR is a single hyphen-free token (default "lfs"; the hyphen-free
+# requirement is why it is NOT ${DISTRO_ID}, which contains a hyphen).
+LFS_TGT=\$(uname -m)-${LFS_TGT_VENDOR}-linux-gnu
 PATH=/usr/bin
 if [ ! -L /bin ]; then PATH=/bin:\$PATH; fi
 PATH=\$LFS/tools/bin:\$PATH
@@ -32,4 +35,4 @@ GOZJARO_ROOT=${GOZJARO_ROOT}
 export LFS LC_ALL LFS_TGT PATH CONFIG_SITE MAKEFLAGS GOZJARO_ROOT
 EOF
 
-log "wrote bash profile/rc for lfs (LFS=$LFS, TGT=\$(uname -m)-${DISTRO_ID}-linux-gnu)"
+log "wrote bash profile/rc for lfs (LFS=$LFS, TGT=\$(uname -m)-${LFS_TGT_VENDOR}-linux-gnu)"

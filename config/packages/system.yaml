@@ -169,10 +169,13 @@ packages:
     version: "261.2"
     category: system
     source:
-      url: https://github.com/systemd/systemd/archive/refs/tags/v261.2.tar.gz
+      # LFS-style GitHub archive with a custom filename so the on-disk basename
+      # is "systemd-261.2.tar.gz" (the stage-60 glob 'systemd-*.tar.*' needs
+      # this prefix; the default refs/tags/vX download lands as "v261.2.tar.gz").
+      url: https://github.com/systemd/systemd/archive/v261.2/systemd-261.2.tar.gz
       checksum:
-        type: sha256
-        value: ""
+        type: md5
+        value: "e3f04ccc83a28ec5e80c5432bb8329f5"
     build:
       system: meson
       install_check: systemctl --version
@@ -209,10 +212,13 @@ packages:
     version: "9.2.0954"
     category: system
     source:
-      url: https://github.com/vim/vim/archive/refs/tags/v9.2.0954.tar.gz
+      # LFS-style GitHub archive with a custom filename so the on-disk basename
+      # is "vim-9.2.0954.tar.gz" (the stage-60 glob 'vim-*.tar.*' needs this
+      # prefix; the default refs/tags/vX download lands as "v9.2.0954.tar.gz").
+      url: https://github.com/vim/vim/archive/v9.2.0954/vim-9.2.0954.tar.gz
       checksum:
         type: sha256
-        value: ""
+        value: "d1874a84864a8e3419fe8fb0cce5666ba4b388eed51b1fc24739cff7dd732c6e"
     build:
       system: autotools
       configure:

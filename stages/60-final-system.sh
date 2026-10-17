@@ -580,6 +580,11 @@ b_tar_final()      { FORCE_UNSAFE_CONFIGURE=1 ./configure --prefix=/usr && make 
 b_texinfo_final()  { ./configure --prefix=/usr && make && make install; }
 
 b_vim() {
+    local srcdir="${1:-.}"
+    # Derive the version from the extracted tree name (vim-9.2.0954 -> 9.2.0954),
+    # not a hardcoded 9.1.1166 — the tree bumps when the manifest does.
+    local v="${srcdir##*/}"
+    v="${v#vim-}"
     echo '#define SYS_VIMRC_FILE "/etc/vimrc"' >> src/feature.h
     ./configure --prefix=/usr
     make; make install
@@ -587,7 +592,15 @@ b_vim() {
     for L in /usr/share/man/{,*/}man1/vim.1; do
         [ -f "$L" ] && ln -sv vim.1 "$(dirname "$L")/vi.1"
     done
-    ln -sv ../vim/vim91/doc /usr/share/doc/vim-9.1.1166 2>/dev/null || true
+    # Vim installs its runtime files under /usr/share/vim/vimXX (the XX being
+    # the version-numbered runtime dir, not necessarily derived from the patch
+    # level). Locate whatever dir actually got installed and point the doc
+    # symlink at it; skip cleanly when no runtime dir was installed, so we never
+    # leave a dangling link. This is version-drift-proof: it tracks the real
+    # tree instead of a remembered constant.
+    local vimdoc
+    vimdoc=$(ls -d /usr/share/vim/vim*/doc 2>/dev/null | head -n1 || true)
+    [ -n "$vimdoc" ] && ln -sv "$vimdoc" "/usr/share/doc/vim-$v" 2>/dev/null || true
 }
 
 b_procps() {

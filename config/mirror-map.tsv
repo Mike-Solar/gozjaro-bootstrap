@@ -62,3 +62,7 @@ https://zlib.net/fossils/	https://mirrors.ustc.edu.cn/gnu/zlib/
 # LFS (ch.6) uses the astron.com "file" release tarball (ships a generated
 # configure, unlike the GitHub git snapshot). USTC mirrors it under /astron/.
 https://astron.com/	https://mirrors.ustc.edu.cn/astron/
+# SourceForge — USTC mirrors it verbatim under /sourceforge/, preserving the
+# /projects/<x>/files/... tail (psmisc, procps-ng release tarballs).
+# (intltool's launchpad.net has no USTC mirror — it goes direct upstream.)
+https://sourceforge.net/	https://mirrors.ustc.edu.cn/sourceforge/

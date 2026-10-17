@@ -14,3 +14,19 @@ packages:
     build:
       system: custom
     dependencies: []
+
+  # linux-firmware: prebuilt binary blobs (no compile). A dated snapshot from
+  # kernel.org. Pin to 20260916; the sha256 is kernel.org's own .asc value, so
+  # the checksum is reproducible. This is ~500MB — it dominates the live ISO.
+  - name: linux-firmware
+    version: "20260916"
+    category: kernel
+    source:
+      url: https://www.kernel.org/pub/linux/kernel/firmware/linux-firmware-20260916.tar.xz
+      checksum:
+        type: sha256
+        value: "f80dcb757a623deda62200c08e0e1a88c76fb6b54964f31b35fa74da1c90ccc5"
+    build:
+      system: make
+      install_check: test -d /usr/lib/firmware
+    dependencies: []

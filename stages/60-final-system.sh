@@ -126,7 +126,12 @@ b_readline() {
 b_m4_final() { ./configure --prefix=/usr && make && make install; }
 
 b_bc() {
-    CC=gcc ./configure --prefix=/usr -G -O3 -r
+    # GCC >= 16 defaults to C23, where stdbool's true/false are keywords; bc
+    # 7.0.3's BC_PARSE_EXPR_ENTRY pastes the token via `false ## UL`
+    # (UINTMAX_C), which becomes the undeclared identifiers `falseUL`/`trueUL`
+    # under C23. bc's default (GNU) build type doesn't pin the C standard, so
+    # pin C11 here — stable across future gcc bumps too.
+    CC=gcc CFLAGS="-std=gnu11" ./configure --prefix=/usr -G -O3 -r
     make; make install
 }
 

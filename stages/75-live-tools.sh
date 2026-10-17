@@ -15,6 +15,17 @@ require_root
 # ---- HTTP / download clients ------------------------------------------------
 
 b_curl() {
+    # OpenSSL 4.0 made X509_get_subject_name()/X509_get_issuer_name()
+    # return 'const X509_NAME *'; curl 8.14.1's static helpers still
+    # declare the local/param non-const -> hard type error at 1771
+    # (x509_name_oneline, called from the subject/issuer lookups) and
+    # 2405 (X509_NAME *name in ossl_verifyhost). Both locals are
+    # read-only (fed to X509_NAME_print_ex / X509_NAME_get_index_by_NID,
+    # which take const). curl is not in the LFS tree, so no official
+    # patch — minimal source fix here.
+    sed -i 's/x509_name_oneline(X509_NAME \*a/x509_name_oneline(const X509_NAME *a/' lib/vtls/openssl.c
+    sed -i 's/X509_NAME \*name = X509_get_subject_name/const X509_NAME *name = X509_get_subject_name/' lib/vtls/openssl.c
+
     ./configure --prefix=/usr \
         --with-openssl \
         --without-libpsl \

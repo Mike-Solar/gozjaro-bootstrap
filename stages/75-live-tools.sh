@@ -59,6 +59,20 @@ b_wget() {
 # ---- Version control --------------------------------------------------------
 
 b_git() {
+    # OpenSSL 4.0 opaqued struct asn1_string_st: git 2.49.1's imap-send.c
+    # (verify_hostname, the IMAP/TLS cert check) still does raw field access
+    # subj_alt_name->d.ia5->data / ->length on ASN1_IA5STRING, which breaks
+    # with "invalid use of incomplete typedef" under 4.0. Swap the 3 sites
+    # for the official accessors ASN1_STRING_get0_data() /
+    # ASN1_STRING_length() (declared since OpenSSL 1.1.0, valid on 3.x and
+    # 4.x alike, so no version guard is needed). Census confirms these are
+    # the only 3 raw asn1_string_st field accesses in the whole git tree;
+    # the remaining const / X509_NAME_get_text_by_NID messages are warnings
+    # only (git does not use -Werror).
+    sed -i -e 's/subj_alt_name->d\.ia5->data/ASN1_STRING_get0_data(subj_alt_name->d.ia5)/g' \
+            -e 's/subj_alt_name->d\.ia5->length/ASN1_STRING_length(subj_alt_name->d.ia5)/g' \
+            imap-send.c
+
     # Build without Tcl/Tk (no gitk/git-gui) and without CPAN fallbacks.
     ./configure --prefix=/usr \
         --with-gitconfig=/etc/gitconfig \

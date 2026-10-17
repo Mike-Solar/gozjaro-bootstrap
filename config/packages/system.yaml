@@ -65,7 +65,7 @@ packages:
       url: https://www.kernel.org/pub/software/scm/git/git-2.49.1.tar.xz
       checksum:
         type: sha256
-        value: ""
+        value: "310831de967f1c8c5e8ff55f92807dea89f83dc3d3d2a5d16c209bd01a31def1"
     build:
       system: make
       configure:

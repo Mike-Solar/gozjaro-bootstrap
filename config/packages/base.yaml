@@ -844,13 +844,14 @@ packages:
     version: "4.0.7"
     category: base
     source:
-      # LFS (ch.6) uses the SourceForge release tarball; the old Debian pool
-      # ".orig" name (procps_4.0.7.orig) broke the stage-60 glob
-      # 'procps-ng-*.tar.*'. md5 from the LFS md5sums page.
-      url: https://sourceforge.net/projects/procps-ng/files/Production/procps-ng-4.0.7.tar.xz
+      # Debian pool ".orig" tarball = unmodified upstream source, previously
+      # verified end-to-end from the build VM (reachable + sha256 matches).
+      # NOTE: on-disk basename is "procps_4.0.7.orig.tar.xz", so the stage-60
+      # build_pkg prefix is "procps_" (underscore), NOT "procps-ng-".
+      url: https://deb.debian.org/debian/pool/main/p/procps/procps_4.0.7.orig.tar.xz
       checksum:
-        type: md5
-        value: "d47bdda51c4bd595a1ab21b8e538bcb3"
+        type: sha256
+        value: 36dd88bb129cbaad5c5481cddde6dd16ab533e677cf99c424f0bb63f555f7e47
     build:
       system: autotools
       configure:
@@ -1018,13 +1019,14 @@ packages:
     version: "23.7"
     category: base
     source:
-      # LFS (ch.6) uses the SourceForge release tarball; the old Debian pool
-      # ".orig" name (psmisc_23.7.orig) broke the stage-60 glob
-      # 'psmisc-*.tar.*'. md5 from the LFS md5sums page.
-      url: https://sourceforge.net/projects/psmisc/files/psmisc/psmisc-23.7.tar.xz
+      # Debian pool ".orig" tarball = unmodified upstream source, and it was
+      # previously verified end-to-end from the build VM (reachable + sha256
+      # matches). NOTE: on-disk basename is "psmisc_23.7.orig.tar.xz", so the
+      # stage-60 build_pkg prefix is "psmisc_" (underscore), NOT "psmisc-".
+      url: https://deb.debian.org/debian/pool/main/p/psmisc/psmisc_23.7.orig.tar.xz
       checksum:
-        type: md5
-        value: "53eae841735189a896d614cba440eb10"
+        type: sha256
+        value: 58c55d9c1402474065adae669511c191de374b0871eec781239ab400b907c327
     build:
       system: autotools
       configure:

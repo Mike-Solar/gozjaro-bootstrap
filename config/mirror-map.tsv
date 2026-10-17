@@ -62,7 +62,8 @@ https://zlib.net/fossils/	https://mirrors.ustc.edu.cn/gnu/zlib/
 # LFS (ch.6) uses the astron.com "file" release tarball (ships a generated
 # configure, unlike the GitHub git snapshot). USTC mirrors it under /astron/.
 https://astron.com/	https://mirrors.ustc.edu.cn/astron/
-# SourceForge — USTC mirrors it verbatim under /sourceforge/, preserving the
-# /projects/<x>/files/... tail (psmisc, procps-ng release tarballs).
-# (intltool's launchpad.net has no USTC mirror — it goes direct upstream.)
-https://sourceforge.net/	https://mirrors.ustc.edu.cn/sourceforge/
+# Debian pool — psmisc/procps-ng .orig tarballs. USTC mirrors Debian under
+# /debian/ with the pool/ layout preserved verbatim. (If this mirror entry
+# 404s from the runner, download_url falls back to the upstream
+# deb.debian.org URL, which is known-reachable from the build VM.)
+https://deb.debian.org/debian/pool/	https://mirrors.ustc.edu.cn/debian/pool/

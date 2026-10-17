@@ -93,7 +93,14 @@ for ld in /lib64/ld-linux-x86-64.so.2 /lib/ld-linux-x86-64.so.2; do
 done
 
 # --- copy the kernel modules we need at boot ---------------------------------
-modules=( loop squashfs isofs overlay ext4 sr_mod cdrom usb-storage uas nvme nvme-core )
+# Storage / fs / USB-host modules for the live medium AND real-disk boot:
+#   xfs, btrfs        -> installed root=UUID on non-ext4 filesystems
+#   xhci/ehci/uhci/ohci-hcd -> USB host controllers (usb-storage is builtin but
+#   useless without a host controller). usbcore/usb-common come in as deps.
+modules=( loop squashfs isofs overlay ext4 xfs btrfs
+          sr_mod cdrom usb-storage uas
+          xhci-hcd ehci-hcd uhci-hcd ohci-hcd
+          nvme nvme-core )
 moddir="/lib/modules/$KVER"
 [ -d "$moddir" ] || die "kernel modules dir missing: $moddir"
 mkdir -p "$STAGING$moddir"
@@ -137,7 +144,10 @@ mount -t devtmpfs devtmpfs /dev  || rescue "mount /dev"
 
 # --- Kernel modules ----------------------------------------------------------
 echo "[gozjaro-initramfs] loading modules"
-for m in loop squashfs isofs overlay ext4 sr_mod cdrom usb-storage uas nvme nvme-core; do
+for m in loop squashfs isofs overlay ext4 xfs btrfs
+         sr_mod cdrom usb-storage uas
+         xhci-hcd ehci-hcd uhci-hcd ohci-hcd
+         nvme nvme-core; do
     modprobe -q "$m" && echo "  + $m" || echo "  - $m (missing/builtin)"
 done
 

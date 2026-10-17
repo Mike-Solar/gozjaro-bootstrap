@@ -59,3 +59,6 @@ https://distfiles.ariadne.space/	https://mirrors.ustc.edu.cn/ariadne/
 https://www.iana.org/	https://mirrors.ustc.edu.cn/iana/
 https://www.nano-editor.org/	https://mirrors.ustc.edu.cn/nano/
 https://zlib.net/fossils/	https://mirrors.ustc.edu.cn/gnu/zlib/
+# LFS (ch.6) uses the astron.com "file" release tarball (ships a generated
+# configure, unlike the GitHub git snapshot). USTC mirrors it under /astron/.
+https://astron.com/	https://mirrors.ustc.edu.cn/astron/

@@ -299,10 +299,15 @@ packages:
     version: "5.48"
     category: base
     source:
-      url: https://github.com/file/file/archive/refs/tags/FILE5_48/file-FILE5_48.tar.gz
+      # LFS (ch.6) uses the astron.com release tarball, which ships a
+      # pre-generated `configure`. The GitHub FILE5_48 tag tarball is a
+      # *git snapshot* (configure.ac only, no generated configure) and breaks
+      # the cross stage 40 build with "../configure: No such file". The md5
+      # is the one from the LFS md5sums page for file-5.48.tar.gz.
+      url: https://astron.com/pub/file/file-5.48.tar.gz
       checksum:
-        type: sha256
-        value: ""
+        type: md5
+        value: "423686e97f731d8c24e9cd1a22b03dec"
     build:
       system: autotools
       configure:

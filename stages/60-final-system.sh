@@ -716,14 +716,31 @@ b_dbus() {
     useradd -c "D-Bus Message Daemon" -d /run/dbus \
         -u 18 -g messagebus -s /bin/false messagebus 2>/dev/null || true
 
-    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
-        --runstatedir=/run --enable-user-session --disable-static \
-        --disable-doxygen-docs --disable-xml-docs \
-        --with-systemdsystemunitdir=/usr/lib/systemd/system \
-        --with-systemduserunitdir=/usr/lib/systemd/user \
-        --with-system-socket=/run/dbus/system_bus_socket
-    make
-    make install
+    # dbus 1.16.x is MESSON-ONLY: the release tarball ships no ./configure
+    # (autotools was dropped after 1.10) -> old "b_dbus" hit
+    # "./configure: No such file or directory". meson+ninja are built
+    # earlier in this stage (60.meson/60.ninja before 60.dbus) and expat
+    # (the only hard dep, required for the default message_bus=true)
+    # builds at 60.expat. glib/gio are probed only when modular_tests is
+    # enabled -> disable it. No systemd/libsystemd in the chroot ->
+    # disable explicitly. --wrap-mode=nofallback: never let meson reach
+    # out the network for subprojects.
+    mkdir -v build && cd build
+    meson setup .. \
+        --prefix=/usr \
+        --buildtype=release \
+        --wrap-mode=nofallback \
+        -Dsystemd=disabled \
+        -Dselinux=disabled \
+        -Dapparmor=disabled \
+        -Dmodular_tests=disabled \
+        -Dxml_docs=disabled \
+        -Ddoxygen_docs=disabled \
+        -Duser_session=false \
+        -Dsystem_socket=/run/dbus/system_bus_socket
+    ninja
+    ninja install
+
     ln -sfv /etc/machine-id /var/lib/dbus/machine-id 2>/dev/null || true
 }
 

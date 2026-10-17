@@ -28,7 +28,7 @@ packages:
       url: https://dbus.freedesktop.org/releases/dbus/dbus-1.16.2.tar.xz
       checksum:
         type: sha256
-        value: ""
+        value: "0ba2a1a4b16afe7bceb2c07e9ce99a8c2c3508e5dec290dbb643384bd6beb7e2"
     build:
       system: meson
       install_check: dbus-daemon --version

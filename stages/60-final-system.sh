@@ -289,8 +289,18 @@ b_gcc_final() {
     case $(uname -m) in
         x86_64) sed -e '/m64=/s/lib64/lib/' -i.orig gcc/config/i386/t-linux64 ;;
     esac
+    # Fresh build dir: a stale one from a failed attempt keeps an old
+    # optionlist/options.cc, and make's move-if-change + s-options stamp
+    # prevents regeneration, so the corrupt options.cc would survive.
+    rm -rf build
     mkdir -v build && cd build
-    ../configure --prefix=/usr \
+    # gcc's option pipeline (opt-gather/optc-gen.awk) is awk-dialect
+    # sensitive: the chroot's default awk (busybox/mawk) mangles the
+    # optionlist (a '0' prefix lands on every flag name), so optc-gen
+    # writes "#error <flag> does not have a Var() flag" diagnostics into
+    # options.cc and the build dies. gawk is built just before this
+    # package (60.gawk-final); force it for both configure and make.
+    AWK=/usr/bin/gawk ../configure --prefix=/usr \
         LD=ld \
         --enable-languages=c,c++ \
         --enable-default-pie \
@@ -300,7 +310,7 @@ b_gcc_final() {
         --disable-bootstrap \
         --disable-fixincludes \
         --with-system-zlib
-    make
+    AWK=/usr/bin/gawk make
     make install
     ln -svr /usr/bin/cpp /usr/lib
     # The LTO plugin lives under <machine>/<full-version>/ in the libexec tree.
@@ -823,6 +833,7 @@ build_pkg 60.acl            "acl-"          b_acl
 build_pkg 60.libcap         "libcap-"       b_libcap
 build_pkg 60.libxcrypt      "libxcrypt-"    b_libxcrypt
 build_pkg 60.shadow         "shadow-"       b_shadow
+build_pkg 60.gawk-final     "gawk-"         b_gawk_final
 build_pkg 60.gcc-final      "gcc-"          b_gcc_final
 build_pkg 60.ncurses-final  "ncurses-"      b_ncurses_final
 build_pkg 60.sed-final      "sed-"          b_sed_final
@@ -857,7 +868,6 @@ build_pkg 60.ninja          "ninja-"        b_ninja
 build_pkg 60.coreutils-fin  "coreutils-"    b_coreutils_final
 build_pkg 60.check          "check-"        b_check
 build_pkg 60.diffutils-fin  "diffutils-"    b_diffutils_final
-build_pkg 60.gawk-final     "gawk-"         b_gawk_final
 build_pkg 60.findutils-fin  "findutils-"    b_findutils_final
 build_pkg 60.groff          "groff-"        b_groff
 build_pkg 60.gzip-final     "gzip-"         b_gzip_final

@@ -640,7 +640,18 @@ b_kbd() {
 b_libpipeline()    { ./configure --prefix=/usr && make && make install; }
 b_make_final()     { ./configure --prefix=/usr && make && make install; }
 b_patch_final()    { ./configure --prefix=/usr && make && make install; }
-b_tar_final()      { FORCE_UNSAFE_CONFIGURE=1 ./configure --prefix=/usr && make && make install; }
+b_tar_final() {
+    # LFS's acl_fix patch: tar 1.35 defines static acl_get_file_at /
+    # acl_set_file_at / acl_delete_def_file_at with the OLD 3-arg signatures,
+    # which now clash with libacl's new sys/acl.h declarations (4-arg, with
+    # at_flags) installed earlier in the same stage -> "conflicting types".
+    # The patch renames tar's statics to tar_acl_*. Verified on the
+    # tar-1.35 release tree: -p1 applies with 0 rejects. Stage 20 already
+    # fetched it via patches.yaml. No `|| true`: an unpatched tar would
+    # silently build against the wrong API surface.
+    apply_patch "$PWD" "tar-1.35-acl_fix-1.patch"
+    FORCE_UNSAFE_CONFIGURE=1 ./configure --prefix=/usr && make && make install;
+}
 b_texinfo_final()  { ./configure --prefix=/usr && make && make install; }
 
 b_vim() {

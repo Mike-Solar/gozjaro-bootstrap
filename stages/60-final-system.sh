@@ -552,6 +552,14 @@ b_flit_core() {
     pip3 install --no-index --no-user --find-links dist --no-cache-dir flit_core || true
 }
 
+b_packaging() {
+    # wheel 0.48's runtime dep (packaging >= 24.0). packaging itself has zero
+    # runtime deps; its build backend is flit_core (built just before). LFS
+    # 13.1 ships this package for exactly this offline-install chain.
+    pip3 wheel -w dist --no-cache-dir --no-build-isolation --no-deps "$PWD"
+    pip3 install --no-index --find-links=dist packaging
+}
+
 b_wheel() {
     pip3 wheel -w dist --no-cache-dir --no-build-isolation --no-deps "$PWD"
     pip3 install --no-index --find-links=dist wheel
@@ -877,6 +885,7 @@ build_pkg 60.elfutils       "elfutils-"     b_elfutils
 build_pkg 60.libffi         "libffi-"       b_libffi
 build_pkg 60.python-final   "Python-"       b_python_final
 build_pkg 60.flit-core      "flit_core-"    b_flit_core
+build_pkg 60.packaging      "packaging-"    b_packaging
 build_pkg 60.wheel          "wheel-"        b_wheel
 build_pkg 60.setuptools     "setuptools-"   b_setuptools
 build_pkg 60.markupsafe     "markupsafe-"   b_markupsafe

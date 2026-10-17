@@ -355,7 +355,7 @@ packages:
       url: https://pypi.org/packages/source/f/flit-core/flit_core-4.0.2.tar.gz
       checksum:
         type: sha256
-        value: ""
+        value: "b6929defd93884b584d7c87829e0e7b5c26ed6be17b0b873979019314aa841c8"
     build:
       system: python
       install_check: python3 -m flit_core.wheel

@@ -327,12 +327,31 @@ packages:
       url: https://pypi.org/packages/source/s/setuptools/setuptools-84.0.0.tar.gz
       checksum:
         type: sha256
-        value: ""
+        value: "f4695c21257f0d9b537ec2692c941d02ee143b7cc1276941349a546573b2ef73"
     build:
       system: python
       install_check: python3 -c "import setuptools"
     dependencies:
       - python3
+
+  # Runtime dependency of wheel 0.48 (packaging >= 24.0). Zero runtime deps
+  # itself; build backend is flit_core (>=3.12, we build 4.0.2). LFS 13.1
+  # ships it for exactly this chain: build it, pip-install it, and the
+  # offline `pip3 install --no-index wheel` can resolve its requirement.
+  - name: packaging
+    version: "26.3"
+    category: system
+    source:
+      url: https://files.pythonhosted.org/packages/source/p/packaging/packaging-26.3.tar.gz
+      checksum:
+        type: sha256
+        value: "94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79"
+    build:
+      system: python
+      install_check: python3 -c "import packaging"
+    dependencies:
+      - python3
+      - flit-core
 
   - name: wheel
     version: "0.48.0"
@@ -341,12 +360,13 @@ packages:
       url: https://pypi.org/packages/source/w/wheel/wheel-0.48.0.tar.gz
       checksum:
         type: sha256
-        value: ""
+        value: "94800765601e9171bf5d58d066e640662842bcedcbab982b2c90787a2c987322"
     build:
       system: python
       install_check: python3 -c "import wheel"
     dependencies:
       - python3
+      - packaging
 
   - name: markupsafe
     version: "3.0.3"
@@ -400,7 +420,7 @@ packages:
       url: https://pypi.org/packages/source/f/flit-core/flit_core-4.0.2.tar.gz
       checksum:
         type: sha256
-        value: ""
+        value: "b6929defd93884b584d7c87829e0e7b5c26ed6be17b0b873979019314aa841c8"
     build:
       system: python
       install_check: python3 -m flit_core.wheel

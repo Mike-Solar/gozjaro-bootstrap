@@ -33,6 +33,21 @@ b_curl() {
 }
 
 b_wget() {
+    # OpenSSL 4.0 removed the entire SSLv3 layer: no SSLv3_client_method()
+    # and no OPENSSL_NO_SSL3_METHOD guard macro either. wget 1.25.0's
+    # "secure-protocol sslv3" case is guarded by '#ifndef
+    # OPENSSL_NO_SSL3_METHOD', which under 4.0 lets the dead call through
+    # -> implicit declaration (a hard error under a C23 default toolchain).
+    # Add a version gate: < 4.0 keeps the old behavior, >= 4.0 excludes the
+    # call so 'meth' stays NULL and ssl_init's existing '!meth' handling
+    # (line ~293) reports it cleanly. The default protocol (auto/pfs) uses
+    # SSLv23_client_method() (= TLS_client_method() under 4.0), so only an
+    # explicit --secure-protocol=ssl3 is affected, and that's dead anyway.
+    # 1.25.0 is the newest Gnu wget (no 1.26 / no openssl-4 backport), so
+    # patch in place. Target '#ifndef OPENSSL_NO_SSL3_METHOD' is unique in
+    # the tree.
+    sed -i 's/#ifndef OPENSSL_NO_SSL3_METHOD/#if !defined(OPENSSL_NO_SSL3_METHOD) \&\& OPENSSL_VERSION_NUMBER < 0x40000000L/' src/openssl.c
+
     ./configure --prefix=/usr \
         --sysconfdir=/etc \
         --with-ssl=openssl \

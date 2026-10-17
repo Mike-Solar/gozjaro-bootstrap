@@ -520,12 +520,30 @@ b_libffi() {
 }
 
 b_python_final() {
+    # OpenSSL 4.0 removed the legacy TLSv1/TLSv1_1/TLSv1_2/SSLv3 method
+    # symbols; unpatched Python 3.14.7's _ssl.c still references them, so
+    # _ssl links but fails to import (undefined symbol: TLSv1_method) and
+    # the ssl module drops out of the build ("Could not build the ssl
+    # module!"). LFS's openssl_4 patch guards those references behind
+    # OPENSSL_VERSION_NUMBER >= 0x40000000L — verified on the 3.14.7
+    # release tree: -p1 applies with 0 rejects. Stage 20 already fetched
+    # it via the shared patches.yaml channel. No `|| true`: without this
+    # patch the build silently ships without ssl, which is worse than a
+    # hard stop (same contract as glibc-fhs).
+    apply_patch "$PWD" "Python-3.14.7-openssl_4-1.patch"
     ./configure --prefix=/usr \
         --enable-shared \
         --with-system-expat \
         --enable-optimizations
     make; make install
-    install -v -dm755 /usr/lib/python3.13/site-packages
+    # Derive the minor version from the extracted tree name
+    # (Python-3.14.7 -> 3.14) instead of hardcoding: this line was pinned to
+    # python3.13 and would silently create the wrong site-packages dir after
+    # a manifest bump to 3.14. 3.14.7 -> 3.14 via ${ver%.*}.
+    local tree ver
+    tree="$(basename "$PWD")"
+    ver="${tree#Python-}"
+    install -v -dm755 "/usr/lib/python${ver%.*}/site-packages"
 }
 
 b_flit_core() {

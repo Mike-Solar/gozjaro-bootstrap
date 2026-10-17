@@ -14,15 +14,20 @@
 require_root
 ensure_dirs
 
-command -v wget >/dev/null || die "wget not installed"
+if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
+    die "need curl or wget installed"
+fi
 
 mkdir -p "$SOURCES_DIR"
 chmod a+wt "$SOURCES_DIR"
 cd "$SOURCES_DIR"
 
-# Downloads are written to "<name>.part" and renamed only on success, so any
-# leftover .part file is incomplete and must never be treated as a source.
-rm -f -- ./*.part 2>/dev/null || true
+# Downloads are written to "<name>.part" and renamed only on success, so a
+# .part file is never mistaken for a source archive. Leftover .part files are
+# deliberately kept: the next run resumes them instead of restarting a
+# multi-hundred-megabyte transfer from byte 0 on a slow link. A resumed file
+# is still validated by the archive/checksum pass below, which deletes it if
+# the result is not a valid tarball.
 
 # ---------------------------------------------------------------------------
 # Manifest library
@@ -99,19 +104,78 @@ download_patches_for_package() {
 
         logline "  patch: $patch_fn"
         if [ ! -f "$dest_path" ]; then
-            wget --timeout=30 --tries=1 --progress=bar:force:noscroll \
-                 -U "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" -O "$dest_path" "$patch_url" 2>/dev/null || \
+            fetch_to "$patch_url" "${dest_path}.part" && mv -f -- "${dest_path}.part" "$dest_path" || \
                 logline "  WARN: Failed to download patch $patch_fn"
         fi
     done <<< "$patch_urls"
 }
 
 # ---------------------------------------------------------------------------
+# HTTP transfer primitives
+# ---------------------------------------------------------------------------
+# curl is preferred because it can abort a *slow but alive* transfer:
+# --speed-limit/--speed-time kills the connection when the rate stays below
+# the threshold. Plain `wget --timeout=30` never fires in that case, since
+# every arriving byte resets the read timeout — that is exactly how a 30 MB
+# tarball from a throttled upstream looks like a frozen stage for an hour.
+#
+# The UA is deliberately honest: a spoofed browser UA is actively harmful
+# here, because the TUNA mirror (which serves the sourceware tree) answers
+# 403 to a fake "Mozilla/5.0 ..." header, while every upstream we hit
+# accepts this one.
+UA="Gozjaro-Bootstrap/1.0"
+: "${GOZJARO_MIN_SPEED:=10240}"     # bytes/s before a transfer counts as stalled
+: "${GOZJARO_STALL_SECONDS:=30}"    # how long it may stay below that rate
+
+export GOZJARO_MIN_SPEED GOZJARO_STALL_SECONDS
+
+have_curl() { command -v curl >/dev/null 2>&1; }
+
+# fetch_to <url> <dest>
+# Single logical transfer, resuming an existing <dest> when possible.
+# Returns 0 only when the server delivered a non-empty result.
+# Progress goes to stderr (the terminal), so a big download is not silent.
+fetch_to() {
+    local url="$1" dest="$2" rc=0
+
+    if have_curl; then
+        local resume=()
+        [ -s "$dest" ] && resume=(-C -)
+        curl --fail --location --progress-bar --show-error \
+             --connect-timeout 15 --retry 1 --retry-delay 2 \
+             --speed-limit "$GOZJARO_MIN_SPEED" --speed-time "$GOZJARO_STALL_SECONDS" \
+             -A "$UA" ${resume[@]+"${resume[@]}"} -o "$dest" "$url" || rc=$?
+        if [ "$rc" -ne 0 ] && [ "${#resume[@]}" -gt 0 ]; then
+            # The partial file is unusable (server ignored the range, connection
+            # died mid-header, ...): restart this candidate from byte 0 once.
+            rm -f -- "$dest" 2>/dev/null || true
+            logline "    resume failed; restarting ${dest##*/} from scratch"
+            rc=0
+            curl --fail --location --progress-bar --show-error \
+                 --connect-timeout 15 --retry 1 --retry-delay 2 \
+                 --speed-limit "$GOZJARO_MIN_SPEED" --speed-time "$GOZJARO_STALL_SECONDS" \
+                 -A "$UA" -o "$dest" "$url" || rc=$?
+        fi
+        [ "$rc" -eq 0 ] && [ -s "$dest" ]
+        return $?
+    fi
+
+    local -a wopts=(--dns-timeout=10 --connect-timeout=15 --read-timeout=30 \
+                    --timeout=30 --tries=2 --progress=bar:force:noscroll -U "$UA")
+    if [ -s "$dest" ]; then
+        wget "${wopts[@]}" -c -O "$dest" "$url" && [ -s "$dest" ] && return 0
+        rm -f -- "$dest" 2>/dev/null || true
+    fi
+    wget "${wopts[@]}" -O "$dest" "$url" || rc=$?
+    [ "$rc" -eq 0 ] && [ -s "$dest" ]
+}
+
+# ---------------------------------------------------------------------------
 # Mirror + fallback download helper
 # ---------------------------------------------------------------------------
-# When GOZJARO_SOURCE_MIRROR=ustc, candidate URLs are [mirror, upstream];
-# otherwise just [upstream]. This makes a wrong mirror-map entry a cache miss
-# (never a build failure). LFS patches are never mirrored.
+# When mirroring is active, candidate URLs are [mirror, upstream]; otherwise
+# just [upstream]. This makes a wrong mirror-map entry a cache miss (never a
+# build failure). LFS patches are never mirrored.
 #
 # Usage: download_url <dest-filename> <url> [upstream-or-not]
 #   $3 = "mirror" -> compute mirror candidate and try it FIRST, then fall back
@@ -122,31 +186,26 @@ download_url() {
     local fn="$1" url="$2" mode="${3:-direct}"
     local candidates=()
     if [ "$mode" = "mirror" ]; then
-        candidates+=("$(manifest_mirror_url "$url")")
-        [ "${candidates[0]}" != "$url" ] || candidates=()
+        local m
+        m=$(manifest_mirror_url "$url")
+        [ "$m" != "$url" ] && candidates+=("$m")
     fi
     candidates+=("$url")
 
-    # Never write the final filename directly: wget -O truncates it up front,
-    # so an interrupted transfer would leave a partial archive that looks
-    # cached (and could be picked up by a CI source cache).
+    # Never write the final filename directly, so an interrupted transfer can
+    # never masquerade as a cached archive.
     local tmp="${fn}.part" c
     for c in "${candidates[@]}"; do
         [ -z "$c" ] && continue
-        rm -f -- "$tmp" 2>/dev/null || true
-        if wget --timeout=30 --tries=2 --progress=bar:force:noscroll \
-                -U "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
-                -O "$tmp" "$c" 2>/dev/null; then
-            # Guard: a 200 with an empty body (seen when a mirror's CDN blocks
-            # the egress IP) still satisfies wget — reject it so we fall back.
-            if [ -s "$tmp" ]; then
-                mv -f -- "$tmp" "$fn"
-                return 0
-            fi
-            logline "    empty response from ${c##*/}; falling back"
+        logline "    GET ${c}"
+        if fetch_to "$c" "$tmp"; then
+            mv -f -- "$tmp" "$fn"
+            return 0
         fi
+        # A failed candidate may have left a partial file with unknown
+        # provenance; the next candidate always starts clean.
         rm -f -- "$tmp" 2>/dev/null || true
-        logline "    retry-next candidate failed: ${c##*/}"
+        logline "    failed: ${c}"
     done
     return 1
 }
@@ -156,10 +215,47 @@ download_url() {
 # ---------------------------------------------------------------------------
 
 MIRROR_ACTIVE=0
+
+# Distinct mirror hosts declared in the map, e.g. mirrors.ustc.edu.cn.
+mirror_hosts() {
+    awk -F'\t' '!/^#/ && NF >= 2 { u=$2; sub(/^https?:\/\//, "", u); sub(/\/.*/, "", u); print u }' \
+        "${GOZJARO_MIRROR_MAP:-/dev/null}" 2>/dev/null | sort -u
+}
+
+# Probe every mirror host once (cheap HEAD-ish GET on '/'). Enabling the
+# mirror only when something answers avoids burning a 15s connect timeout per
+# source file on a network where the mirrors are blocked.
+mirror_reachable() {
+    [ -r "${GOZJARO_MIRROR_MAP:-/dev/null}" ] || return 1
+    local host
+    while IFS= read -r host; do
+        [ -z "$host" ] && continue
+        if have_curl; then
+            curl -sS -o /dev/null --max-time 5 --connect-timeout 3 "https://${host}/" && return 0
+        else
+            wget -q --spider --timeout=5 --tries=1 "https://${host}/" && return 0
+        fi
+    done < <(mirror_hosts)
+    return 1
+}
+
 case "${GOZJARO_SOURCE_MIRROR:-auto}" in
-    ustc) MIRROR_ACTIVE=1 ;;
+    ustc|on|yes|1)
+        MIRROR_ACTIVE=1
+        ;;
+    auto)
+        # Default: use the mirrors when they are reachable, upstream otherwise.
+        if mirror_reachable; then
+            MIRROR_ACTIVE=1
+        else
+            logline "source mirror: no mirror host reachable; using upstream directly"
+        fi
+        ;;
+    *)
+        MIRROR_ACTIVE=0
+        ;;
 esac
-[ "$MIRROR_ACTIVE" = "1" ] && logline "source mirror: USTC ($GOZJARO_MIRROR_MAP), with upstream fallback"
+[ "$MIRROR_ACTIVE" = "1" ] && logline "source mirror: enabled ($GOZJARO_MIRROR_MAP), with upstream fallback"
 [ "$MIRROR_ACTIVE" = "1" ] && [ ! -r "${GOZJARO_MIRROR_MAP:-/dev/null}" ] && {
     logline "WARNING: mirror map not readable: ${GOZJARO_MIRROR_MAP}; using upstream directly"
 }
@@ -206,10 +302,7 @@ download_all_patches() {
             continue
         fi
         ptmp="${pdst}.part"
-        rm -f -- "$ptmp" 2>/dev/null || true
-        if wget --timeout=30 --tries=2 --progress=bar:force:noscroll \
-                -U "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
-                -O "$ptmp" "$purl" 2>/dev/null && [ -s "$ptmp" ]; then
+        if fetch_to "$purl" "$ptmp"; then
             mv -f -- "$ptmp" "$pdst"
             logline "  patch: $pfn ok"
         else
@@ -396,7 +489,7 @@ verify_downloaded_checksums || die "one or more source checksum verifications fa
 # Fallback: also verify against upstream LFS md5sums if available
 logline "checking upstream md5sums from $LFS_MD5_URL"
 if wget --timeout=30 --tries=3 --progress=bar:force:noscroll \
-        -U "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
+        -U "$UA" \
         -O md5sums.upstream "$LFS_MD5_URL" 2>/dev/null; then
     grep -E "  ($(ls | tr '\n' '|' | sed 's/|$//'))\$" md5sums.upstream > md5sums.local 2>/dev/null || true
     if [ -s md5sums.local ]; then

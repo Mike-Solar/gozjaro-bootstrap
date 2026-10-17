@@ -1,11 +1,12 @@
 # Gozjaro source-mirror rewrite table.
 # One tab-separated entry per line:  <origin-url-prefix> \t <mirror-url-prefix>
 #
-# Applied ONLY when GOZJARO_SOURCE_MIRROR=ustc (see config/lfs.env). The longest
-# matching origin prefix wins; anything unmatched is served straight from
-# upstream. The downloader always falls back to the upstream URL if the mirror
-# 404s / fails, so a wrong entry can never break a build — it just misses the
-# cache hit.
+# Applied when GOZJARO_SOURCE_MIRROR is "ustc" or "auto" (see config/lfs.env).
+# With "auto" the fetch stage probes the mirror hosts first and silently uses
+# upstream if none answers. The longest matching origin prefix wins; anything
+# unmatched is served straight from upstream. The downloader always falls
+# back to the upstream URL if the mirror 404s / stalls, so a wrong entry can
+# never break a build — it just misses the cache hit.
 #
 # NOTE: every entry below was spot-checked with a ranged GET and returned 200/204
 # (bytes available) from a home network on 2026-10. USTC WAFs some datacenter /
@@ -25,11 +26,15 @@ https://www.kernel.org/	https://mirrors.ustc.edu.cn/kernel/
 # kernel.org CDN mirror — e2fsprogs (tytso) lives here, not on www.kernel.org
 https://mirrors.edge.kernel.org/pub/	https://mirrors.ustc.edu.cn/kernel/
 
-# sourceware.org (binutils, elfutils, ...). The manifest uses both the bare
-# sourceware.org and www.sourceware.org hosts — map each (USTC serves both as
-# the same /sourceware tree; bzip2 resolves under /sourceware/pub/bzip2).
-https://sourceware.org/	https://mirrors.ustc.edu.cn/sourceware/
-https://www.sourceware.org/	https://mirrors.ustc.edu.cn/sourceware/
+# sourceware.org (binutils, elfutils, bzip2). USTC does NOT mirror this tree:
+# every /sourceware/... path there returns 404. TUNA does mirror it, but
+# flattened — the /pub and /ftp path components are dropped — so each
+# subtree needs its own entry. (Verified 206/200 with a ranged GET, 2026-10.)
+https://sourceware.org/pub/binutils/releases/	https://mirrors.tuna.tsinghua.edu.cn/sourceware/binutils/releases/
+https://www.sourceware.org/pub/binutils/releases/	https://mirrors.tuna.tsinghua.edu.cn/sourceware/binutils/releases/
+https://sourceware.org/ftp/elfutils/	https://mirrors.tuna.tsinghua.edu.cn/sourceware/elfutils/
+https://sourceware.org/pub/bzip2/	https://mirrors.tuna.tsinghua.edu.cn/sourceware/bzip2/
+https://www.sourceware.org/pub/bzip2/	https://mirrors.tuna.tsinghua.edu.cn/sourceware/bzip2/
 
 # curl.se, cpan.org, python.org, PyPI
 https://curl.se/download/	https://mirrors.ustc.edu.cn/curl/

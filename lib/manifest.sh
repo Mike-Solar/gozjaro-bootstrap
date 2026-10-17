@@ -310,8 +310,13 @@ manifest_get_download_url() {
 # Reads config/mirror-map.tsv (or $GOZJARO_MIRROR_MAP): one entry per line,
 #   <origin-url-prefix>\t<mirror-url-prefix>
 # The longest matching origin prefix wins; the path tail is preserved.
-# Anything unmatched, or when GOZJARO_SOURCE_MIRROR != ustc, echoes the URL
-# unchanged. Callers SHOULD still fall back to upstream on download failure.
+# Anything unmatched, or when mirroring is disabled (GOZJARO_SOURCE_MIRROR
+# = direct), echoes the URL unchanged. Callers SHOULD still fall back to
+# upstream on download failure.
+#
+# `auto` is mapped here too: the caller (20-fetch-sources) probes the mirror
+# hosts once and only asks for rewrites when one answers. That check lives in
+# the stage rather than here so this function stays free of network I/O.
 # Usage: manifest_mirror_url <url>
 manifest_mirror_url() {
     local url="$1"
@@ -319,7 +324,7 @@ manifest_mirror_url() {
 
     # No mirror selected, or no map file -> pass through.
     case "${GOZJARO_SOURCE_MIRROR:-auto}" in
-        ustc) : ;;
+        ustc|auto|on|yes|1) : ;;
         *) printf '%s\n' "$url"; return 0 ;;
     esac
     [ -r "$map" ] || { printf '%s\n' "$url"; return 0; }

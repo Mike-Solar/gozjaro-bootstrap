@@ -15,7 +15,7 @@ on:
         type: string
         default: ''
       source_mirror:
-        description: 'Source tarball mirror (upstream auto, or USTC for CN runners; source mode only)'
+        description: 'Source tarball mirror (auto = probe mirrors, ustc = force; source mode only)'
         type: choice
         default: auto
         options:
@@ -241,9 +241,10 @@ jobs:
           echo "    Started: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
           # lfs.env already honours an externally-set GOZJARO_SOURCE_MIRROR
-          # (: "${GOZJARO_SOURCE_MIRROR:=auto}"), so exporting it here is
-          # enough to switch tarball downloads onto USTC with upstream
-          # fallback. Patches are never mirrored.
+          # (: "${GOZJARO_SOURCE_MIRROR:=auto}"). "auto" probes the mirror
+          # hosts once and uses them when one answers; "ustc" forces the
+          # rewrite. Either way every URL falls back to upstream. Patches are
+          # never mirrored.
           sudo GOZJARO_SOURCE_MIRROR="${{ env.SOURCE_MIRROR }}" \
                GOZJARO_MIRROR_MAP="${{ github.workspace }}/config/mirror-map.tsv" \
                "./build.sh" all

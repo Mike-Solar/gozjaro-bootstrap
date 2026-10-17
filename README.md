@@ -104,7 +104,7 @@ sudo ./build.sh --force 40       # re-run from scratch
 
 - A 64-bit Linux host (Debian 12 / Arch / Fedora)
 - Root access (`sudo`)
-- Build tools: `gcc`, `g++`, `make`, `bison`, `gawk`, `texinfo`, `python3`, `wget`
+- Build tools: `gcc`, `g++`, `make`, `bison`, `gawk`, `texinfo`, `python3`, `curl` or `wget`
 - For live ISO: `mksquashfs`, `xorriso`, `grub-mkrescue`, `cpio`
 - 40 GB free disk, 4 GB+ RAM (8 GB+ recommended)
 - An empty partition for `/mnt/lfs`
@@ -120,7 +120,17 @@ Binary mode additionally requires:
   it re-runs on every build to validate cached archives against manifest
   checksums, so a truncated download or stale CI cache is repaired instead of
   failing in a later stage. Downloads are written to `.part` files and renamed
-  only after a complete transfer.
+  only after a complete transfer; an interrupted `.part` is resumed on the
+  next run.
+- **Slow links**: stage 20 prefers `curl` and aborts a transfer that stays
+  under `GOZJARO_MIN_SPEED` (default 10 KiB/s) for `GOZJARO_STALL_SECONDS`
+  (default 30) instead of hanging. Raise `GOZJARO_MIN_SPEED`/`GOZJARO_STALL_SECONDS`
+  on a genuinely slow but usable link.
+- **Source mirror**: `GOZJARO_SOURCE_MIRROR` (default `auto`) probes the hosts
+  in `config/mirror-map.tsv` once per run and rewrites source URLs when one
+  answers; every rewritten URL still falls back to upstream, so a wrong map
+  entry only costs a retry. Set it to `direct` to always download from
+  upstream.
 - **Dual build mode**: `50-chroot-prep.sh` detects `BUILD_MODE` and runs
   either source stages (51/60/70/75/77/80/85) or binary stages
   (35/36/70/80/85) inside the chroot.

@@ -275,7 +275,10 @@ b_gcc_final() {
     make
     make install
     ln -svr /usr/bin/cpp /usr/lib
-    ln -sfv ../../libexec/gcc/"$(gcc -dumpmachine)"/14.2.0/liblto_plugin.so \
+    # The LTO plugin lives under <machine>/<full-version>/ in the libexec tree.
+    # Ask the just-installed gcc for both parts instead of hardcoding 14.2.0
+    # (which is why the stale symlink broke with gcc 16.2.0).
+    ln -sfv ../../libexec/gcc/"$(gcc -dumpmachine)"/"$(gcc -dumpfullversion)"/liblto_plugin.so \
         /usr/lib/bfd-plugins/ 2>/dev/null || true
     mkdir -pv /usr/share/gdb/auto-load/usr/lib
     mv -v /usr/lib/*gdb.py /usr/share/gdb/auto-load/usr/lib 2>/dev/null || true

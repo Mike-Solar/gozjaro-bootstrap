@@ -5,6 +5,8 @@
 . "$(dirname "$(readlink -f "$0")")/../lib/common.sh"
 # shellcheck source=../lib/pkg.sh
 . "$GOZJARO_ROOT/lib/pkg.sh"
+# shellcheck source=../lib/manifest.sh
+. "$GOZJARO_ROOT/lib/manifest.sh"
 
 start_log 30-cross-toolchain
 require_lfs_user
@@ -38,6 +40,14 @@ build_gcc_pass1() {
         mv -v "$dir" "$pkg"
     done
 
+    # Cross-compiler glibc hint: track the manifest so it matches the glibc that
+    # build_glibc installs into $LFS. Pure-bash manifest lookup (python3 is not
+    # available yet in this early tree); fall back to 2.41 if it can't resolve.
+    local glibc_ver
+    glibc_ver=$(manifest_get_field glibc version base 2>/dev/null) || true
+    glibc_ver="${glibc_ver:-2.41}"
+    log "gcc pass1: --with-glibc-version=$glibc_ver"
+
     case $(uname -m) in
         x86_64)
             sed -e '/m64=/s/lib64/lib/' -i.orig gcc/config/i386/t-linux64
@@ -48,7 +58,7 @@ build_gcc_pass1() {
     ../configure \
         --target="$LFS_TGT" \
         --prefix="$LFS/tools" \
-        --with-glibc-version=2.41 \
+        --with-glibc-version="$glibc_ver" \
         --with-sysroot="$LFS" \
         --with-newlib \
         --without-headers \
@@ -123,6 +133,14 @@ build_libstdcxx() {
     local gcc_src
     gcc_src=$(extract_pkg "gcc-")
     cd "$gcc_src"
+    # The cross g++ driver looks for C++ headers in
+    #   <prefix>/<target>/include/c++/<gcc-version>
+    # where <gcc-version> is the *full* version of the gcc being installed
+    # (e.g. 16.2.0). We derive it from the extracted tree name (gcc-16.2.0 ->
+    # 16.2.0) so this tracks the manifest instead of drifting from a hardcoded
+    # 14.2.0 — that stale value is exactly why `#include <exception>` failed.
+    local gcc_ver
+    gcc_ver="${gcc_src##*/gcc-}"
     mkdir -v build && cd build
     ../libstdc++-v3/configure \
         --host="$LFS_TGT" \
@@ -131,7 +149,7 @@ build_libstdcxx() {
         --disable-multilib \
         --disable-nls \
         --disable-libstdcxx-pch \
-        --with-gxx-include-dir=/tools/"$LFS_TGT"/include/c++/14.2.0
+        --with-gxx-include-dir=/tools/"$LFS_TGT"/include/c++/"$gcc_ver"
     make
     make DESTDIR="$LFS" install
     rm -v "$LFS"/usr/lib/lib{stdc++{,exp,fs},supc++}.la

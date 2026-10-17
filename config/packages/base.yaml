@@ -369,7 +369,7 @@ packages:
       url: https://ftpmirror.gnu.org/gawk/gawk-5.4.1.tar.xz
       checksum:
         type: sha256
-        value: ""
+        value: "07f6f7342b7febe4313fc2c2542ad93d64fe20ad8717200109f105a826f5fd37"
     build:
       system: autotools
       configure:
@@ -384,7 +384,7 @@ packages:
       url: https://ftpmirror.gnu.org/gcc/gcc-16.2.0/gcc-16.2.0.tar.xz
       checksum:
         type: sha256
-        value: ""
+        value: "e6738e29597f733270731aa90600f37ffdc045079dfc27ec7e8192cc81085c3e"
     build:
       system: autotools
       configure:

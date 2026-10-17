@@ -116,7 +116,11 @@ Binary mode additionally requires:
 ## Design notes
 
 - **Idempotency**: each package writes a marker file after success. Re-running
-  skips completed work. `--force` clears markers.
+  skips completed work. `--force` clears markers. Stage 20 is the exception:
+  it re-runs on every build to validate cached archives against manifest
+  checksums, so a truncated download or stale CI cache is repaired instead of
+  failing in a later stage. Downloads are written to `.part` files and renamed
+  only after a complete transfer.
 - **Dual build mode**: `50-chroot-prep.sh` detects `BUILD_MODE` and runs
   either source stages (51/60/70/75/77/80/85) or binary stages
   (35/36/70/80/85) inside the chroot.

@@ -21,7 +21,7 @@ find_tarball() {
         printf '%s\n' "$f"
         return 0
     fi
-    die "no tarball for prefix '$prefix' in $SOURCES_DIR"
+    die "no tarball for prefix '$prefix' in $SOURCES_DIR; run 'sudo ./build.sh 20-fetch-sources'"
 }
 
 # tarball_topdir <tarball>
@@ -39,6 +39,12 @@ extract_pkg() {
     if ! tarball=$(find_tarball "$prefix"); then
         return 1
     fi
+    # Catch truncated/corrupt archives before extraction. Drop the bad file so
+    # the next fetch run cannot reuse it from the source cache.
+    if ! tar tf "$tarball" >/dev/null 2>&1; then
+        rm -f -- "$tarball" 2>/dev/null || true
+        die "corrupt source archive '$tarball' (truncated or unreadable); removed it — rerun 'sudo ./build.sh 20-fetch-sources' to re-download"
+    fi
     # Distinct top-level path components in the archive.
     tops=$(tar tf "$tarball" 2>/dev/null | awk -F/ 'NF{print $1}' | sort -u)
     if [ -n "$tops" ] && [ "$(printf '%s\n' "$tops" | wc -l)" = "1" ]; then
@@ -47,7 +53,7 @@ extract_pkg() {
         [ -e "$target" ] && rm -rf "$target"
         if ! ( cd "$workdir" && tar -xf "$tarball" ); then
             rm -rf "$target"
-            die "failed to extract source archive '$tarball'; remove it and rerun stage 20-fetch-sources"
+            die "failed to extract source archive '$tarball'; check free disk space and permissions, then rerun 'sudo ./build.sh 20-fetch-sources'"
         fi
     else
         # Tarball has no single top dir (e.g. tzdata). Extract into a
@@ -59,7 +65,7 @@ extract_pkg() {
         mkdir -p "$target"
         if ! ( cd "$target" && tar -xf "$tarball" ); then
             rm -rf "$target"
-            die "failed to extract source archive '$tarball'; remove it and rerun stage 20-fetch-sources"
+            die "failed to extract source archive '$tarball'; check free disk space and permissions, then rerun 'sudo ./build.sh 20-fetch-sources'"
         fi
     fi
     printf '%s\n' "$target"

@@ -199,7 +199,15 @@ b_binutils_final() {
 }
 
 b_gmp() {
-    ./configure --prefix=/usr --enable-cxx --disable-static --docdir=/usr/share/doc/gmp-6.3.0
+    # GCC 15+ defaults to -std=gnu23 (C23): an empty parameter list now means
+    # "no parameters" (was "unspecified" pre-C23), so gmp 6.3.0's hand-written
+    # configure "long long reliability test" program -- which declares
+    # `void g(){}` (K&R empty param list) and calls g() with 6 args -- fails
+    # to compile under C23 and configure dies with
+    # "could not find a working compiler". Pin C11.
+    # NOTE: gmp's configure skips its own cflags_maybe (-O2 -pedantic
+    # -fomit-frame-pointer -m64) when CFLAGS is set, so carry -O2 explicitly.
+    CFLAGS="-O2 -std=gnu11" ./configure --prefix=/usr --enable-cxx --disable-static --docdir=/usr/share/doc/gmp-6.3.0
     make; make install
 }
 

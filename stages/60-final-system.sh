@@ -240,11 +240,21 @@ b_libcap() {
 }
 
 b_libxcrypt() {
+    # gcc 16 defaults to gnu23; under C23 glibc 2.44 declares strchr in the
+    # const-preserving form, so libxcrypt's `char *hptr = strchr((const char *)
+    # …)` triggers -Wdiscarded-qualifiers, and libxcrypt's configure adds
+    # -Werror by default (warnings_are_errors=true) -> fatal. Unlike bc/gmp
+    # (whose code fails to *compile* under C23), this 2024-era package compiles
+    # fine in C23 and only the warning is promoted to an error, so the
+    # minimal fix is the package's own --disable-werror: drop -Werror, leave
+    # the compiler's default standard alone. --disable-static/failure-tokens
+    # etc. are LFS 13.1 defaults, kept unchanged.
     ./configure --prefix=/usr \
         --enable-hashes=strong,glibc \
         --enable-obsolete-api=no \
         --disable-static \
-        --disable-failure-tokens
+        --disable-failure-tokens \
+        --disable-werror
     make; make install
 }
 

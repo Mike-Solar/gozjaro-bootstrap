@@ -15,17 +15,13 @@ require_root
 # ---- HTTP / download clients ------------------------------------------------
 
 b_curl() {
-    # OpenSSL 4.0 made X509_get_subject_name()/X509_get_issuer_name()
-    # return 'const X509_NAME *'; curl 8.14.1's static helpers still
-    # declare the local/param non-const -> hard type error at 1771
-    # (x509_name_oneline, called from the subject/issuer lookups) and
-    # 2405 (X509_NAME *name in ossl_verifyhost). Both locals are
-    # read-only (fed to X509_NAME_print_ex / X509_NAME_get_index_by_NID,
-    # which take const). curl is not in the LFS tree, so no official
-    # patch — minimal source fix here.
-    sed -i 's/x509_name_oneline(X509_NAME \*a/x509_name_oneline(const X509_NAME *a/' lib/vtls/openssl.c
-    sed -i 's/X509_NAME \*name = X509_get_subject_name/const X509_NAME *name = X509_get_subject_name/' lib/vtls/openssl.c
-
+    # curl 8.23.0 is built natively against OpenSSL 4.x: its vtls/openssl.c
+    # uses the ASN1_STRING_get0_data()/_get_length()/_type() accessors
+    # (since 1.1.0, works on 3.x and 4.x) instead of the raw struct-field
+    # access that 8.14.1 still had (num->type/->data, psig->length/->data)
+    # and that OpenSSL 4.0's opaqued struct asn1_string_st broke. Upstream
+    # landed the port in the 8.19+ series; 8.23.0 is the current stable.
+    # No source patches needed.
     ./configure --prefix=/usr \
         --with-openssl \
         --without-libpsl \

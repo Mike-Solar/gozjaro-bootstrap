@@ -20,6 +20,10 @@ mkdir -p "$SOURCES_DIR"
 chmod a+wt "$SOURCES_DIR"
 cd "$SOURCES_DIR"
 
+# Downloads are written to "<name>.part" and renamed only on success, so any
+# leftover .part file is incomplete and must never be treated as a source.
+rm -f -- ./*.part 2>/dev/null || true
+
 # ---------------------------------------------------------------------------
 # Manifest library
 # ---------------------------------------------------------------------------
@@ -123,20 +127,25 @@ download_url() {
     fi
     candidates+=("$url")
 
-    local c
+    # Never write the final filename directly: wget -O truncates it up front,
+    # so an interrupted transfer would leave a partial archive that looks
+    # cached (and could be picked up by a CI source cache).
+    local tmp="${fn}.part" c
     for c in "${candidates[@]}"; do
         [ -z "$c" ] && continue
+        rm -f -- "$tmp" 2>/dev/null || true
         if wget --timeout=30 --tries=2 --progress=bar:force:noscroll \
                 -U "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
-                -O "$fn" "$c" 2>/dev/null; then
+                -O "$tmp" "$c" 2>/dev/null; then
             # Guard: a 200 with an empty body (seen when a mirror's CDN blocks
             # the egress IP) still satisfies wget — reject it so we fall back.
-            if [ -s "$fn" ]; then
+            if [ -s "$tmp" ]; then
+                mv -f -- "$tmp" "$fn"
                 return 0
             fi
             logline "    empty response from ${c##*/}; falling back"
-            rm -f -- "$fn" 2>/dev/null || true
         fi
+        rm -f -- "$tmp" 2>/dev/null || true
         logline "    retry-next candidate failed: ${c##*/}"
     done
     return 1
@@ -184,7 +193,7 @@ download_all_patches() {
         fi
     } | sort -u)
 
-    local count purl pfn pdst
+    local count purl pfn pdst ptmp
     count=$(printf '%s\n' "$all_urls" | grep -cve '^\s*$' || true)
     logline "Downloading $count LFS patch files (upstream, not mirrored)"
     local pfail=0
@@ -196,11 +205,15 @@ download_all_patches() {
             logline "  patch: $pfn (cached)"
             continue
         fi
+        ptmp="${pdst}.part"
+        rm -f -- "$ptmp" 2>/dev/null || true
         if wget --timeout=30 --tries=2 --progress=bar:force:noscroll \
                 -U "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
-                -O "$pdst" "$purl" 2>/dev/null; then
+                -O "$ptmp" "$purl" 2>/dev/null && [ -s "$ptmp" ]; then
+            mv -f -- "$ptmp" "$pdst"
             logline "  patch: $pfn ok"
         else
+            rm -f -- "$ptmp" 2>/dev/null || true
             logline "  patch: $pfn FAILED"
             pfail=1
         fi
@@ -218,22 +231,32 @@ remove_invalid_cached_sources() {
         pkg_names=$(_manifest_extract_names_bash "$mfile")
         for name in $pkg_names; do
             local checksum_value source_filename cached_file
-            checksum_value=$(manifest_get_field "$name" "checksum_value" 2>/dev/null)
-            [ -n "$checksum_value" ] || continue
-
             source_filename=$(manifest_get_filename "$name" 2>/dev/null || true)
             [ -n "$source_filename" ] || continue
+            # Patch entries have no source archive of their own.
+            if [[ "$source_filename" == *.patch ]]; then
+                continue
+            fi
             cached_file="${SOURCES_DIR}/$source_filename"
             [ -f "$cached_file" ] || continue
 
-            if ! manifest_verify_checksum "$cached_file" "$name" 2>/dev/null; then
-                warn "discarding cached source with invalid checksum: $source_filename"
-                rm -f -- "$cached_file" || die "cannot remove invalid source: $cached_file"
+            checksum_value=$(manifest_get_field "$name" "checksum_value" 2>/dev/null)
+            if [ -n "$checksum_value" ]; then
+                if ! manifest_verify_checksum "$cached_file" "$name" 2>/dev/null; then
+                    warn "discarding cached source with invalid checksum: $source_filename"
+                    rm -f -- "$cached_file" || die "cannot remove invalid source: $cached_file"
+                fi
+            elif ! tar tf "$cached_file" >/dev/null 2>&1; then
+                # No manifest checksum (e.g. acl, linux): a structural test
+                # still catches truncated downloads before a build stage does.
+                warn "discarding corrupt cached source archive: $source_filename"
+                rm -f -- "$cached_file" || die "cannot remove corrupt source: $cached_file"
             fi
         done
     done
 }
 
+logline "Revalidating cached source archives (checksums + archive integrity)"
 remove_invalid_cached_sources
 
 # Count total URLs
@@ -306,26 +329,27 @@ verify_downloaded_checksums() {
         local pkg_names
         pkg_names=$(_manifest_extract_names_bash "$mfile")
         for name in $pkg_names; do
-            local checksum_value
+            local checksum_value source_filename matched_file
             checksum_value=$(manifest_get_field "$name" "checksum_value" 2>/dev/null)
+            source_filename=$(manifest_get_filename "$name" 2>/dev/null || true)
 
-            if [ -z "$checksum_value" ]; then
+            # Patch entries and other URL-less entries have no archive.
+            if [ -z "$source_filename" ]; then
                 skipped=$((skipped + 1))
                 continue
             fi
 
             # Find matching file
-            local matched_file=""
-            local source_filename
-            source_filename=$(manifest_get_filename "$name" 2>/dev/null || true)
-            if [ -n "$source_filename" ] && [ -f "${SOURCES_DIR}/$source_filename" ]; then
-                matched_file="${SOURCES_DIR}/$source_filename"
+            matched_file="${SOURCES_DIR}/$source_filename"
+            if [ ! -f "$matched_file" ]; then
+                matched_file=""
+                for f in "${SOURCES_DIR}"/${name}-*; do
+                    if [ -f "$f" ]; then
+                        matched_file="$f"
+                        break
+                    fi
+                done
             fi
-
-            for f in "${SOURCES_DIR}"/${name}-*; do
-                [ -z "$matched_file" ] || break
-                [ -f "$f" ] && matched_file="$f" && break
-            done
 
             if [ -z "$matched_file" ]; then
                 # Try partial match
@@ -337,17 +361,32 @@ verify_downloaded_checksums() {
                 done
             fi
 
-            if [ -n "$matched_file" ]; then
+            if [ -z "$matched_file" ]; then
+                skipped=$((skipped + 1))
+                continue
+            fi
+
+            if [ -n "$checksum_value" ]; then
                 if manifest_verify_checksum "$matched_file" "$name" 2>/dev/null; then
                     verified=$((verified + 1))
                 else
+                    warn "checksum verification failed: $(basename "$matched_file")"
+                    rm -f -- "$matched_file" 2>/dev/null || true
                     errors=$((errors + 1))
                 fi
+            elif tar tf "$matched_file" >/dev/null 2>&1; then
+                # Packages without a manifest checksum still get a structural
+                # check so a truncated download cannot reach a build stage.
+                verified=$((verified + 1))
+            else
+                warn "corrupt source archive: $(basename "$matched_file")"
+                rm -f -- "$matched_file" 2>/dev/null || true
+                errors=$((errors + 1))
             fi
         done
     done
 
-    logline "Checksum verification: $verified verified, $skipped skipped (no checksum), $errors errors"
+    logline "Checksum verification: $verified verified, $skipped skipped, $errors errors"
     return $errors
 }
 

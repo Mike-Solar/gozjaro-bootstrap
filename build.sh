@@ -96,6 +96,17 @@ stage_is_chroot() {
     esac
 }
 
+# Stages that are re-run on every invocation even when their marker exists.
+# 20-fetch-sources verifies cached archives against manifest checksums; the
+# sources directory can be restored from a CI cache or left with a truncated
+# download between runs, so a stale marker must not hide a corrupt tarball.
+stage_always_run() {
+    case "$1" in
+        20-fetch-sources) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 resolve_stage() {
     local q="$1" s
     for s in "${STAGES[@]}"; do
@@ -112,9 +123,12 @@ run_stage() {
     script="$GOZJARO_ROOT/stages/${stage}.sh"
     [ -x "$script" ] || die "stage script missing or not executable: $script"
 
-    if is_done "$stage"; then
+    if is_done "$stage" && ! stage_always_run "$stage"; then
         log "skip stage $stage (marker present; use --force to re-run)"
         return 0
+    fi
+    if is_done "$stage"; then
+        log "revalidating stage $stage (not skipped by marker)"
     fi
 
     step "==> stage $stage"

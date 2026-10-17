@@ -884,7 +884,7 @@ packages:
       url: https://github.com/shadow-maint/shadow/releases/download/4.20.2/shadow-4.20.2.tar.xz
       checksum:
         type: sha256
-        value: ""
+        value: "b89f432b75ae55a2d852b446d0365484795fdf533ab97d550e325fa15594a224"
     build:
       system: autotools
       configure:
@@ -893,6 +893,7 @@ packages:
         - --with-bcrypt
         - --with-yescrypt
         - --without-libbsd
+        - --disable-logind
         - --with-group-name-max-length=32
       install_check: passwd --version
     dependencies: []

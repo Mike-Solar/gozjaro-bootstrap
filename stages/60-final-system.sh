@@ -268,8 +268,13 @@ b_shadow() {
         -e '/PATH=/{s@/sbin:@@;s@/bin:@@}' \
         -i etc/login.defs
     touch /usr/bin/passwd
+    # shadow 4.20 autoconf probes for libsystemd (logind) by default; in the LFS
+    # chroot there is no systemd, so the probe is fatal ("configure: error:
+    # libsystemd not found"). LFS disables it with --disable-logind. The cmocka
+    # "not found" line in the log is only a WARNING (tests simply aren't built),
+    # not the cause of the failure.
     ./configure --sysconfdir=/etc --disable-static --with-{b,yes}crypt --without-libbsd \
-        --with-group-name-max-length=32
+        --disable-logind --with-group-name-max-length=32
     make && make exec_prefix=/usr install
     make -C man install-man
     pwconv

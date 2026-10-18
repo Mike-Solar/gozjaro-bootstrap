@@ -903,7 +903,12 @@ b_efivar() {
 # variables (no override hook), so sed them out — same gcc-16 drift
 # class as efivar above. CFLAGS override drops the default -flto.
 b_efibootmgr() {
-    sed -i -e 's/-Werror //g' -e 's/-Wl,--fatal-warnings,//g' Make.defaults
+    # -Werror is standalone; --fatal-warnings is comma-joined with
+    # --no-allow-shlib-undefined in one -Wl, argument, so strip only the
+    # --fatal-warnings, token or a bare --no-allow-shlib-undefined leaks
+    # into the gcc line (gcc: unrecognized option). CFLAGS override drops
+    # the default -flto.
+    sed -i -e 's/-Werror //g' -e 's/--fatal-warnings,//g' Make.defaults
     make EFIDIR=Gozjaro EFI_LOADER=grubx64.efi CFLAGS="-O2 -g"
     make EFIDIR=Gozjaro EFI_LOADER=grubx64.efi CFLAGS="-O2 -g" install
 }

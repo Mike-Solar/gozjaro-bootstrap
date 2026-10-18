@@ -148,6 +148,18 @@ b_nano() {
 # ---- Disk / filesystem tools ------------------------------------------------
 
 b_parted() {
+    # parted 3.6's do_version() is a legacy K&R empty-paren definition
+    # 'static int / do_version ()' — under a C23-default toolchain with
+    # GCC 14+, passing it into command_create()'s typed slot
+    # 'int (*method)(PedDevice **, PedDisk **)' is a hard
+    # -Wincompatible-pointer-types error (parted.c:2469). All 18 other
+    # do_* commands already take (PedDevice**, PedDisk**); do_version's
+    # body uses no arguments, so just give it the expected signature.
+    # Census: 'do_version ()' appears exactly once (the definition); the
+    # other empty-paren K&R defs in parted.c are not passed to typed
+    # pointer slots and compile fine.
+    sed -i 's/^do_version ()$/do_version (PedDevice **dev, PedDisk **diskp)/' parted/parted.c
+
     ./configure --prefix=/usr \
         --disable-static \
         --disable-debug \

@@ -95,23 +95,47 @@ build_kernel() {
         --enable HYPERV \
         --enable HYPERV_STORAGE
 
-    # SCSI host adapters for every VMware controller flavour, built-in:
-    #   "BusLogic Parallel"  -> BusLogic.ko       (CONFIG_SCSI_BUSLOGIC)
-    #   "LSI Logic Parallel" -> mptspi/mptscsih/mptbase.ko
-    #                           (CONFIG_FUSION_SPI, drivers/message/fusion;
-    #                            claims PCI 1000:0040, the VMware LSI emulation)
-    #   "LSI Logic SAS"      -> mpt3sas.ko        (CONFIG_SCSI_MPT3SAS; in
-    #                           kernel 7.x the legacy mpt2sas option is a
-    #                            dummy that selects mpt3sas)
-    #   "VMware Paravirtual" -> vmw_pvscsi.ko     (already enabled above)
-    # Without a host adapter the SCSI bus is never enumerated and /dev/sd*
-    # never appears even though BLK_DEV_SD is built-in. Safe on any kernel
-    # bump: scripts/config just adds a .config line and `make olddefconfig`
-    # silently drops symbols that no longer exist.
+    # SCSI host adapters for VMware's controller flavours, built-in.
+    # PCI device → driver mapping (confirmed against v7.1 source):
+    #
+    #   "BusLogic Parallel"      104b:0040  → BusLogic.ko
+    #                                     (CONFIG_SCSI_BUSLOGIC)
+    #
+    #   "LSI Logic Parallel"     1000:0030  → mptspi.ko  (+ mptscsih, mptbase)
+    #   (= LSI Symbios 53c1030)           (CONFIG_FUSION_SPI,
+    #                                       drivers/message/fusion/mptspi.c
+    #                                       PCI table has LSI_53C1030)
+    #
+    #   "LSI Logic SAS"          1000:00a8  → mpt3sas.ko
+    #   (SAS 1068)                       (CONFIG_SCSI_MPT3SAS; in kernel 7.x
+    #                                      the legacy mpt2sas option is a
+    #                                      dummy that selects mpt3sas)
+    #
+    #   "VMware Paravirtual"     1af4:1104  → vmw_pvscsi.ko
+    #   (PVSCSI)                            (already enabled above)
+    #
+    # Without a matching host adapter the SCSI bus is never enumerated and
+    # /dev/sd* never appears even though BLK_DEV_SD is built-in.
+    # scripts/config is idempotent and `make olddefconfig` silently drops
+    # symbols that no longer exist in a future kernel, so this is safe to
+    # keep.
     ./scripts/config \
         --enable FUSION_SPI \
         --enable SCSI_MPT3SAS \
         --enable SCSI_BUSLOGIC
+
+    # --- Verify critical storage symbols survived olddefconfig ---------------
+    # olddefconfig can quietly downgrade a tristate if a dependency resolves
+    # differently between kernel versions (e.g. SCSI_LOWLEVEL path changes).
+    # Re-check the three VMware SCSI adapters right before building so a
+    # regression is caught HERE, not at boot time.
+    for _sym in FUSION_SPI SCSI_MPT3SAS SCSI_BUSLOGIC; do
+        _val=$(grep "^CONFIG_${_sym}=" .config 2>/dev/null | cut -d= -f2 || echo "MISSING")
+        case "$_val" in
+            y|m) log "  OK  CONFIG_${_sym}=${_val}" ;;
+            *)   log "  !!  CONFIG_${_sym}=${_val}  — expected y or m" ;;
+        esac
+    done
 
     # Options required by systemd.
     ./scripts/config \

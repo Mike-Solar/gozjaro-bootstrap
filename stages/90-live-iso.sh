@@ -23,7 +23,16 @@ require_root
 [ -d "$LFS" ] || die "LFS=$LFS does not exist"
 
 for tool in mksquashfs xorriso grub-mkrescue cpio gzip; do
-    command -v "$tool" >/dev/null 2>&1 || die "missing host tool: $tool"
+    if ! command -v "$tool" >/dev/null 2>&1; then
+        case $tool in
+            mksquashfs)    pkg="squashfs-tools (the binary is mksquashfs)" ;;
+            xorriso)       pkg="xorriso" ;;
+            grub-mkrescue) pkg="grub-pc-bin on Debian/Ubuntu" ;;
+            cpio)          pkg="cpio" ;;
+            gzip)          pkg="gzip (base)" ;;
+        esac
+        die "missing host tool: $tool — install on the HOST, not in the chroot (Debian/Ubuntu: apt install $pkg)"
+    fi
 done
 
 # Detect EFI support. grub-mkrescue silently emits a BIOS-only ISO if

@@ -872,6 +872,13 @@ b_popt() {
         -e 's| po/Makefile.in| |' \
         -e 's|tests/test-poptrc tests/Makefile||' \
         configure.ac
+    # AM_GNU_GETTEXT/AM_ICONV_LINK normally clear LTLIBINTL/LTLIBICONV.
+    # With them stripped the @...@ tokens leak VERBATIM through config.status
+    # into the generated Makefile (libtool then passes them to ld, which
+    # dies: "cannot find @LTLIBINTL@"). Blank them in every file that
+    # still references them: the lib LDFLAGS in src/Makefile.am and the
+    # Libs.private line in popt.pc.in.
+    sed -i 's/@LTLIBINTL@//g; s/@LTLIBICONV@//g' src/Makefile.am Makefile.am popt.pc.in
     autoreconf -fi
     ./configure --prefix=/usr --disable-static
     make; make install

@@ -416,6 +416,62 @@ packages:
       install_check: tclsh --version
     dependencies: []
 
+  - name: popt
+    version: "1.19"
+    category: system
+    source:
+      # Source export — ships NO pre-generated configure. The 60-final-system
+      # builder runs autoreconf -fi (autoconf/automake/libtool/gettext are all
+      # built earlier in that stage). Upstream lives at rpm-software-management,
+      # NOT the kernel.org pub path (that directory 404s).
+      url: https://github.com/rpm-software-management/popt/archive/popt-1.19-release/popt-1.19-release.tar.gz
+      checksum:
+        type: sha256
+        value: "6eb40d650526cb9fe63eb4415bcecdf9cf306f7556e77eff689abc5a44670060"
+    build:
+      system: autotools
+      install_check: pkg-config --modversion popt
+    dependencies:
+      - autoconf
+      - automake
+      - libtool
+      - gettext
+
+  - name: efivar
+    version: "39"
+    category: system
+    source:
+      # Pure-make build. Ships its own .pc files (efivar.pc/efiboot.pc/
+      # efisec.pc) which efibootmgr's build links through pkg-config. No
+      # blkid/uuid linkage anywhere in the tree.
+      url: https://github.com/rhboot/efivar/archive/39/efivar-39.tar.gz
+      checksum:
+        type: sha256
+        value: "c9edd15f2eeeea63232f3e669a48e992c7be9aff57ee22672ac31f5eca1609a6"
+    build:
+      system: make
+      install_check: pkg-config --modversion efivar
+    dependencies: []
+
+  - name: efibootmgr
+    version: "18"
+    category: system
+    source:
+      # Required by grub-install --target=x86_64-efi to register the NVRAM boot
+      # entry. The main efibootmgr binary links efivar only; efibootdump adds
+      # popt. Pure-make build; EFIDIR must match the ESP layout the installer
+      # produces (/boot/efi/EFI/Gozjaro/grubx64.efi).
+      url: https://github.com/rhboot/efibootmgr/archive/18/efibootmgr-18.tar.gz
+      checksum:
+        type: sha256
+        value: "442867d12f8525034a404fc8af3036dba8e1fc970998af2486c3b940dfad0874"
+    build:
+      system: make
+      install_check: efibootmgr | head -1
+    dependencies:
+      - efivar
+      - popt
+
   - name: flit-core
     version: "4.0.2"
     category: system

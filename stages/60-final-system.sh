@@ -847,6 +847,44 @@ b_systemd() {
     log "systemd 261.2 installed"
 }
 
+# ---- EFI boot management ------------------------------------------------------
+# popt: option-parsing library (dep of efibootdump). The GitHub source export
+# ships no pre-generated autotools (no configure / no m4/), and the tarball's
+# po/ tree carries LINGUAS + Makevars, so GNU gettext mode works with the
+# chroot's own aclocal — no external gettext.m4 needed. autoconf 2.73 is
+# built at 60.autoconf-final; libtool at 60.libtool.
+b_popt() {
+    # The GitHub source export is missing po/Makefile.am (it's a
+    # gettextize-generated file, not committed upstream), so strip po/
+    # from the build entirely — the catalog is irrelevant for our use.
+    sed -i 's/^SUBDIRS = src po tests$/SUBDIRS = src tests/' Makefile.am
+    sed -i 's| po/Makefile.in| |' configure.ac
+    # NLS stripped: poptint.h's !ENABLE_NLS fallback (POPT_(foo)->foo)
+    # keeps the API; glibc owns libintl so there is no split to link.
+    autoreconf -fi
+    ./configure --prefix=/usr --disable-nls --disable-static
+    make; make install
+}
+
+# efivar: UEFI variable library. Pure make; installs its own .pc files to
+# $(LIBDIR)/pkgconfig — efibootmgr links against them via pkg-config.
+# LIBDIR override: this tree hard-codes /usr/lib64 as the default; this
+# system is not FHS-lib64. ENABLE_DOCS=0: docs need pandoc (not in LFS).
+b_efivar() {
+    make PREFIX=/usr LIBDIR=/usr/lib ENABLE_DOCS=0 ERRORS=
+    make PREFIX=/usr LIBDIR=/usr/lib ENABLE_DOCS=0 ERRORS= install
+}
+
+# efibootmgr: NVRAM boot-entry tool that grub-install --target=x86_64-efi
+# shells out to. Main binary links efivar only; efibootdump adds popt.
+# EFIDIR/EFI_LOADER must describe the ESP layout the installer writes
+# (/boot/efi == ESP root; loader at EFI/Gozjaro/grubx64.efi) so efibootmgr
+# registers the correct \EFI\Gozjaro\grubx64.efi device path.
+b_efibootmgr() {
+    make PREFIX=/usr EFIDIR=Gozjaro EFI_LOADER=grubx64.efi ERRORS=
+    make PREFIX=/usr EFIDIR=Gozjaro EFI_LOADER=grubx64.efi ERRORS= install
+}
+
 b_linux_firmware() {
     # linux-firmware is prebuilt binary blobs — no compilation, just copy.
     # This adds ~500MB to $LFS and grows the live ISO significantly; trade
@@ -938,5 +976,8 @@ build_pkg 60.e2fsprogs      "e2fsprogs-"    b_e2fsprogs
 build_pkg 60.dbus           "dbus-"         b_dbus
 build_pkg 60.systemd        "systemd-"      b_systemd
 build_pkg 60.linux-firmware "linux-firmware-" b_linux_firmware
+build_pkg 60.popt          "popt-"            b_popt
+build_pkg 60.efivar        "efivar-"          b_efivar
+build_pkg 60.efibootmgr    "efibootmgr-"      b_efibootmgr
 
 log "final system packages installed"

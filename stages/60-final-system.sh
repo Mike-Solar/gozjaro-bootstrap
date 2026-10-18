@@ -847,6 +847,60 @@ b_systemd() {
     log "systemd 261.2 installed"
 }
 
+# ---- EFI boot management ------------------------------------------------------
+# popt: option-parsing library (dep of efibootdump). The GitHub source export
+# ships no pre-generated autotools (no configure / no m4/), and the tarball's
+# po/ tree carries LINGUAS + Makevars, so GNU gettext mode works with the
+# chroot's own aclocal — no external gettext.m4 needed. autoconf 2.73 is
+# built at 60.autoconf-final; libtool at 60.libtool.
+b_popt() {
+    # The GitHub source export ships no pre-generated autotools and its po/
+    # tree is incomplete (Makefile.am is a gettextize-generated file, never
+    # committed), so aclocal would choke on po/Makevars. Strip the catalog
+    # tree, the NLS wiring (gettext.m4 macros are not guaranteed in this
+    # chroot) and the test tree: we only need the library + popt.pc.
+    # poptint.h's !ENABLE_NLS fallback (POPT_(foo) -> foo) keeps the API
+    # source-compatible without NLS.
+    sed -i \
+        -e 's/^SUBDIRS = src po tests$/SUBDIRS = src/' \
+        Makefile.am
+    sed -i \
+        -e '/AM_GNU_GETTEXT_VERSION/d' \
+        -e '/AM_GNU_GETTEXT_REQUIRE_VERSION/d' \
+        -e '/AM_GNU_GETTEXT(/d' \
+        -e '/AM_ICONV_LINK/d' \
+        -e 's| po/Makefile.in| |' \
+        -e 's|tests/test-poptrc tests/Makefile||' \
+        configure.ac
+    autoreconf -fi
+    ./configure --prefix=/usr --disable-static
+    make; make install
+}
+
+# efivar: UEFI variable library. Pure make; installs its own .pc files to
+# $(LIBDIR)/pkgconfig — efibootmgr links against them via pkg-config.
+# LIBDIR override: the tree hard-codes /usr/lib64 as the default; this
+# system is not FHS-lib64. ENABLE_DOCS=0: docs need pandoc (not in LFS).
+# ERRORS= strips the hard -Werror (gcc 16 era-drift class, cf. libxcrypt).
+b_efivar() {
+    make PREFIX=/usr LIBDIR=/usr/lib ENABLE_DOCS=0 ERRORS=
+    make PREFIX=/usr LIBDIR=/usr/lib ENABLE_DOCS=0 ERRORS= install
+}
+
+# efibootmgr: NVRAM boot-entry tool that grub-install --target=x86_64-efi
+# shells out to. Main binary links efivar only; efibootdump adds popt.
+# EFIDIR/EFI_LOADER must describe the ESP layout the installer writes
+# (/boot/efi == ESP root; loader at EFI/Gozjaro/grubx64.efi) so the
+# registered NVRAM entry points at \EFI\Gozjaro\grubx64.efi.
+# -Werror and -Wl,--fatal-warnings are HARDCODED into the cflags/ccldflags
+# variables (no override hook), so sed them out — same gcc-16 drift
+# class as efivar above. CFLAGS override drops the default -flto.
+b_efibootmgr() {
+    sed -i -e 's/-Werror //g' -e 's/-Wl,--fatal-warnings,//g' Make.defaults
+    make EFIDIR=Gozjaro EFI_LOADER=grubx64.efi CFLAGS="-O2 -g"
+    make EFIDIR=Gozjaro EFI_LOADER=grubx64.efi CFLAGS="-O2 -g" install
+}
+
 b_linux_firmware() {
     # linux-firmware is prebuilt binary blobs — no compilation, just copy.
     # This adds ~500MB to $LFS and grows the live ISO significantly; trade
@@ -938,5 +992,8 @@ build_pkg 60.e2fsprogs      "e2fsprogs-"    b_e2fsprogs
 build_pkg 60.dbus           "dbus-"         b_dbus
 build_pkg 60.systemd        "systemd-"      b_systemd
 build_pkg 60.linux-firmware "linux-firmware-" b_linux_firmware
+build_pkg 60.popt          "popt-"            b_popt
+build_pkg 60.efivar        "efivar-"          b_efivar
+build_pkg 60.efibootmgr    "efibootmgr-"      b_efibootmgr
 
 log "final system packages installed"

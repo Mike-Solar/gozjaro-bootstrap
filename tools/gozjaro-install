@@ -356,6 +356,17 @@ step "12/13  Installing GRUB bootloader"
 
 if [ -d /sys/firmware/efi ]; then
     info "UEFI firmware detected — installing GRUB as EFI application"
+    # efibootmgr (which grub-install shells out to) registers NVRAM boot
+    # entries through efivarfs. Ensure the host-side mount exists and is rw.
+    if ! mountpoint -q /sys/firmware/efi/efivars; then
+        mount -t efivarfs efivarfs /sys/firmware/efi/efivars 2>/dev/null || \
+            warn "efivars unavailable — efibootmgr will fail"
+    else
+        mount -o remount,rw /sys/firmware/efi/efivars 2>/dev/null || true
+    fi
+    # Bind it into the chroot's sysfs so the chrooted efibootmgr sees it.
+    mkdir -p "$INSTALL_ROOT/sys/firmware/efi/efivars"
+    mount --bind /sys/firmware/efi/efivars "$INSTALL_ROOT/sys/firmware/efi/efivars"
     GRUB_CMD="grub-install --target=x86_64-efi --efi-directory=/boot/efi \
         --bootloader-id=Gozjaro --removable --recheck"
 else

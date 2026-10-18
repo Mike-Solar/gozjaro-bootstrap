@@ -65,6 +65,13 @@ _chroot_env=(
 # Without the variable, behaviour is identical to before.
 [ -n "${GOZJARO_FORCE:-}" ] && _chroot_env+=("GOZJARO_FORCE=${GOZJARO_FORCE}")
 
+# Forward the keep-package-markers valve: with
+#     GOZJARO_FORCE=60 GOZJARO_FORCE_KEEP_PKGS=1 ./build.sh --force 50
+# stage 60 re-runs inside the chroot but build_pkg keeps per-package
+# markers, so only packages newly added to the stage script compile —
+# not the other hundred.
+[ -n "${GOZJARO_FORCE_KEEP_PKGS:-}" ] && _chroot_env+=("GOZJARO_FORCE_KEEP_PKGS=${GOZJARO_FORCE_KEEP_PKGS}")
+
 # The chroot-side script is single-quoted on purpose: $(gforce ...) must be
 # expanded INSIDE the chroot, not by the host shell. gforce() reads
 # GOZJARO_FORCE from the environment (carried in _chroot_env above) and

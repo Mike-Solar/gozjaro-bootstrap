@@ -204,7 +204,11 @@ main() {
     # stage one would still let build_pkg skip the build, so clear the
     # stage's package markers too. The literal-dot glob is stage-scoped:
     # "80."*.done matches 80.kernel / 80.gcc but never 800.something.
-    if [ "$force" = "1" ]; then
+    # GOZJARO_FORCE_KEEP_PKGS=1 suppresses the glob: force the STAGE only,
+    # keep per-package markers, so build_pkg re-runs just the packages that
+    # gained new entries in the stage script (e.g. adding one package to
+    # 60-final-system without recompiling the other 100).
+    if [ "$force" = "1" ] && [ -z "${GOZJARO_FORCE_KEEP_PKGS:-}" ]; then
         local pfx="${stage%%-*}"
         rm -f "$STATE_DIR/${pfx}."*.done
     fi

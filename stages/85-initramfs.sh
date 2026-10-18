@@ -130,9 +130,28 @@ cat > "$STAGING/init" <<'INIT'
 # NO set -e: a single failing command would silently kill PID 1 and panic.
 
 rescue() {
+    # Two jobs: (1) leave a permanent trace — /init's stdout can be invisible
+    # on a quiet console, but dmesg always survives; (2) hand the user a
+    # shell to poke around INSTEAD of dying. PID 1 must never exit: bash
+    # 'exit' from the rescue shell is status 2 -> 'Attempted to kill init'
+    # panic, which is exactly what made the last boot look unsolvable.
     echo "[gozjaro-initramfs] FAIL: $*"
     echo "[gozjaro-initramfs] dropping to rescue shell (exit to re-exec init)"
-    exec /bin/bash
+    # Permanent trace on the console via the kernel log — works even with
+    # 'quiet' on the cmdline (dmesg lines are always printed at KERN_ERR).
+    # /dev/kmsg exists once devtmpfs is mounted; before that this is a
+    # harmless no-op.
+    echo "[gozjaro-initramfs] last error: $*" > /dev/kmsg 2>/dev/null
+    echo "=== gozjaro-initramfs rescue shell; diagnostics: ==="
+    echo "    cat /proc/cmdline   # what root= was actually passed"
+    echo "    ls /dev/sr* /dev/sd* /dev/nvme*"
+    echo "    blkid               # real volume labels on connected media"
+    echo "    ls /run/newroot/sbin/init 2>/dev/null"
+    # A plain `exit` here kills PID 1 -> kernel panic. Re-exec bash forever
+    # so the shell itself can never take the box down with it.
+    while true; do
+        exec /bin/bash
+    done
 }
 
 echo "[gozjaro-initramfs] starting (PID $$)"

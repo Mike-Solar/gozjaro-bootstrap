@@ -1078,7 +1078,7 @@ packages:
       url: https://ftp.gnu.org/gnu/parted/parted-3.6.tar.xz
       checksum:
         type: sha256
-        value: ""
+        value: "3b43dbe33cca0f9a18601ebab56b7852b128ec1a3df3a9b30ccde5e73359e612"
     build:
       system: autotools
       configure:

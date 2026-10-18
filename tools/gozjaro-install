@@ -39,14 +39,89 @@ done
 
 INSTALL_ROOT=/mnt/install
 
+# Mountpoints we create ourselves for the live medium + read-only source.
+ISO_MOUNT=/mnt/iso
+SRC=/mnt/src
+SRC_CREATED=0     # we loop-mounted $SRC      (unmount on exit)
+ISO_MOUNTED=0     # we ro-mounted   $ISO_MOUNT (unmount on exit)
+
+# ---------------------------------------------------------------------------
+# Locate the read-only source tree and the kernel/initrd on the live medium.
+#
+# WHY THIS EXISTS: the initramfs loop-mounts the ISO's filesystem.squashfs to
+# /run/squashfs and moves it under the new root before switch_root. But systemd
+# re-mounts a fresh /run tmpfs at boot, which SHADOWS /run/squashfs and
+# /run/livecd — those paths vanish even though the loop device is still alive
+# and backing the running overlay root (lsblk shows loop0 mounted, / works,
+# yet "ls /run/squashfs" is "No such file or directory"). So we never rely on
+# those paths. Instead we re-derive everything from the live medium by label:
+#   * find the block device labelled GOZJARO_LIVE (the ISO)
+#   * ro-mount it at $ISO_MOUNT
+#   * loop-mount $ISO_MOUNT/live/filesystem.squashfs -> $SRC (pristine root)
+#   * kernel/initrd live at $ISO_MOUNT/boot/vmlinuz|initrd.img
+# Fast path: if /run/squashfs is still a live, populated mountpoint, reuse it
+# and skip the re-mount.
+# ---------------------------------------------------------------------------
+locate_source() {
+    if [ -d /run/squashfs ] && [ -n "$(ls /run/squashfs 2>/dev/null)" ]; then
+        SRC=/run/squashfs
+        ISO_MOUNT=/run/livecd
+        info "reusing live mounts: source=$SRC iso=$ISO_MOUNT"
+        return 0
+    fi
+
+    local live_dev=""
+    live_dev=$(blkid -L GOZJARO_LIVE 2>/dev/null || true)
+    if [ -z "$live_dev" ]; then
+        # Label not resolvable — probe the obvious block devices directly.
+        for d in /dev/sr0 /dev/sr1 /dev/sda /dev/sdb /dev/sdc \
+                 /dev/nvme0n1 /dev/mmcblk0; do
+            [ -b "$d" ] || continue
+            live_dev="$d"
+            break
+        done
+    fi
+    [ -n "$live_dev" ] || die "cannot find the live medium (label GOZJARO_LIVE) - is the install CD/USB still attached?"
+
+    mkdir -p "$ISO_MOUNT"
+    mount -o ro "$live_dev" "$ISO_MOUNT" \
+        || die "cannot ro-mount $live_dev at $ISO_MOUNT"
+    [ -f "$ISO_MOUNT/live/filesystem.squashfs" ] || {
+        umount "$ISO_MOUNT" 2>/dev/null
+        die "$live_dev is not the Gozjaro live medium (no live/filesystem.squashfs)"
+    }
+    ISO_MOUNTED=1
+    info "live medium $live_dev mounted at $ISO_MOUNT"
+
+    mkdir -p "$SRC"
+    mount -o ro,loop "$ISO_MOUNT/live/filesystem.squashfs" "$SRC" \
+        || { umount "$ISO_MOUNT"; die "cannot loop-mount the root squashfs"; }
+    SRC_CREATED=1
+    info "read-only source loop-mounted at $SRC"
+}
+
+# ---------------------------------------------------------------------------
+# Cleanup: unmount everything we created (reverse order) on exit or error.
+# ---------------------------------------------------------------------------
+_cleanup() {
+    local rc=$?
+    local mounts m
+    mounts=$(grep "$INSTALL_ROOT" /proc/mounts 2>/dev/null \
+             | awk '{print $2}' | sort -r) || true
+    for m in $mounts; do
+        umount -l "$m" 2>/dev/null || true
+    done
+    [ "$SRC_CREATED" = "1" ]  && umount "$SRC"      2>/dev/null || true
+    [ "$ISO_MOUNTED" = "1" ]  && umount "$ISO_MOUNT" 2>/dev/null || true
+    exit "$rc"
+}
+trap _cleanup EXIT
+
 # ---------------------------------------------------------------------------
 # Precondition checks
 # ---------------------------------------------------------------------------
 [ "$(id -u)" = "0" ]          || die "must run as root"
-[ -d /run/squashfs ]           || die "/run/squashfs not mounted — is this the Gozjaro live ISO?"
-[ -d /run/livecd/boot ]        || die "/run/livecd/boot not found — kernel/initrd source missing"
-[ -f /run/livecd/live/filesystem.squashfs ] \
-                                || die "/run/livecd/live/filesystem.squashfs missing"
+locate_source
 command -v parted    >/dev/null || die "parted not found"
 command -v rsync     >/dev/null || die "rsync not found"
 command -v mkfs.ext4 >/dev/null || die "mkfs.ext4 not found (e2fsprogs)"
@@ -140,24 +215,14 @@ mkdir -p "$INSTALL_ROOT/boot/efi"
 mount "$PART_ESP"  "$INSTALL_ROOT/boot/efi"
 info "Mounted at $INSTALL_ROOT"
 
-# ---------------------------------------------------------------------------
-# Cleanup trap — unmount everything on exit or error
-# ---------------------------------------------------------------------------
-_cleanup() {
-    local mounts m
-    mounts=$(grep "$INSTALL_ROOT" /proc/mounts 2>/dev/null \
-             | awk '{print $2}' | sort -r) || true
-    for m in $mounts; do
-        umount -l "$m" 2>/dev/null || true
-    done
-}
-trap _cleanup EXIT
+# (cleanup trap for our own mounts was installed in locate_source above)
 
 # ---------------------------------------------------------------------------
 # Step 5/13 — Copy root filesystem from squashfs
 # ---------------------------------------------------------------------------
 step "5/13  Copying root filesystem (this may take several minutes)"
 # Source: read-only squashfs — the pristine system without live session writes.
+# $SRC is /run/squashfs if still mounted, else the re-loop-mounted copy.
 # -aHAXx: archive + hard-links + ACLs + xattrs, no cross-device boundaries.
 rsync -aHAXx --info=progress2 \
     --exclude=/run   \
@@ -165,7 +230,7 @@ rsync -aHAXx --info=progress2 \
     --exclude=/proc  \
     --exclude=/sys   \
     --exclude=/dev   \
-    /run/squashfs/ "$INSTALL_ROOT/"
+    "$SRC/" "$INSTALL_ROOT/"
 info "Root filesystem copied"
 
 # ---------------------------------------------------------------------------
@@ -175,8 +240,8 @@ step "6/13  Installing kernel and initramfs"
 mkdir -p "$INSTALL_ROOT/boot"
 
 # The ISO's kernel/initrd live on the live medium, not inside the squashfs.
-cp -v /run/livecd/boot/vmlinuz    "$INSTALL_ROOT/boot/vmlinuz"
-cp -v /run/livecd/boot/initrd.img "$INSTALL_ROOT/boot/initrd.img"
+cp -v "$ISO_MOUNT/boot/vmlinuz"    "$INSTALL_ROOT/boot/vmlinuz"
+cp -v "$ISO_MOUNT/boot/initrd.img" "$INSTALL_ROOT/boot/initrd.img"
 info "Kernel and initrd installed at /boot"
 
 # ---------------------------------------------------------------------------

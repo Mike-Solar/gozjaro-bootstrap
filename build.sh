@@ -213,6 +213,15 @@ main() {
     local stage
     stage=$(resolve_stage "$target")
     [ "$force" = "1" ] && clear_mark "$stage"
+    # build_pkg uses its own package-level markers (<stage-num>.<pkg>, e.g.
+    # 80.kernel) alongside the stage marker. A --force that only clears the
+    # stage one would still let build_pkg skip the build, so clear the
+    # stage's package markers too. The literal-dot glob is stage-scoped:
+    # "80."*.done matches 80.kernel / 80.gcc but never 800.something.
+    if [ "$force" = "1" ]; then
+        local pfx="${stage%%-*}"
+        rm -f "$STATE_DIR/${pfx}."*.done
+    fi
     run_stage "$stage"
 }
 

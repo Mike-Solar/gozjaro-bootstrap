@@ -162,10 +162,17 @@ mount -t sysfs    sysfs    /sys  || rescue "mount /sys"
 mount -t devtmpfs devtmpfs /dev  || rescue "mount /dev"
 
 # --- Kernel modules ----------------------------------------------------------
+# The word list of this for loop must stay a SINGLE logical line (backslashes
+# are mandatory): a bare newline inside the word list is a bash SYNTAX ERROR.
+# /init is executed by bash, which parses the whole script up front — one bad
+# newline anywhere makes bash print nothing and exit(2), and PID 1 dying =
+# 'Kernel panic - not syncing: Attempted to kill init! exitcode=0x00000200'.
+# (This exact latent bug shipped in the 2026-10-18 ISO: zero /init output,
+# panic 4ms after 'Run /init'.)
 echo "[gozjaro-initramfs] loading modules"
-for m in loop squashfs isofs overlay ext4 xfs btrfs
-         sr_mod cdrom usb-storage uas
-         xhci-hcd ehci-hcd uhci-hcd ohci-hcd
+for m in loop squashfs isofs overlay ext4 xfs btrfs \
+         sr_mod cdrom usb-storage uas \
+         xhci-hcd ehci-hcd uhci-hcd ohci-hcd \
          nvme nvme-core; do
     modprobe -q "$m" && echo "  + $m" || echo "  - $m (missing/builtin)"
 done

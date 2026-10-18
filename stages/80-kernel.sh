@@ -95,6 +95,24 @@ build_kernel() {
         --enable HYPERV \
         --enable HYPERV_STORAGE
 
+    # SCSI host adapters for every VMware controller flavour, built-in:
+    #   "BusLogic Parallel"  -> BusLogic.ko       (CONFIG_SCSI_BUSLOGIC)
+    #   "LSI Logic Parallel" -> mptspi/mptscsih/mptbase.ko
+    #                           (CONFIG_FUSION_SPI, drivers/message/fusion;
+    #                            claims PCI 1000:0040, the VMware LSI emulation)
+    #   "LSI Logic SAS"      -> mpt3sas.ko        (CONFIG_SCSI_MPT3SAS; in
+    #                           kernel 7.x the legacy mpt2sas option is a
+    #                            dummy that selects mpt3sas)
+    #   "VMware Paravirtual" -> vmw_pvscsi.ko     (already enabled above)
+    # Without a host adapter the SCSI bus is never enumerated and /dev/sd*
+    # never appears even though BLK_DEV_SD is built-in. Safe on any kernel
+    # bump: scripts/config just adds a .config line and `make olddefconfig`
+    # silently drops symbols that no longer exist.
+    ./scripts/config \
+        --enable FUSION_SPI \
+        --enable SCSI_MPT3SAS \
+        --enable SCSI_BUSLOGIC
+
     # Options required by systemd.
     ./scripts/config \
         --enable CGROUPS \

@@ -100,7 +100,16 @@ done
 modules=( loop squashfs isofs overlay ext4 xfs btrfs
           sr_mod cdrom usb-storage uas
           xhci-hcd ehci-hcd uhci-hcd ohci-hcd
-          nvme nvme-core )
+          nvme nvme-core
+          # SCSI host adapters for VMware's four controller flavours.
+          # modprobe -D only copies files that actually exist: with our
+          # kernel config these are builtin (skipped), and if anyone flips
+          # one to =m in a future kernel bump the ISO keeps working.
+          # depmod resolves mptspi's deps (mptscsih, mptbase,
+          # scsi_transport_spi) transitively — listed explicitly as a
+          # belt-and-braces guard. BusLogic keeps its upstream casing:
+          # kmod's module lookup is case-sensitive on exact names.
+          sd_mod BusLogic mptspi mptscsih mptbase mpt3sas vmw_pvscsi )
 moddir="/lib/modules/$KVER"
 [ -d "$moddir" ] || die "kernel modules dir missing: $moddir"
 mkdir -p "$STAGING$moddir"
@@ -173,7 +182,8 @@ echo "[gozjaro-initramfs] loading modules"
 for m in loop squashfs isofs overlay ext4 xfs btrfs \
          sr_mod cdrom usb-storage uas \
          xhci-hcd ehci-hcd uhci-hcd ohci-hcd \
-         nvme nvme-core; do
+         nvme nvme-core \
+         sd_mod BusLogic mptspi mptscsih mptbase mpt3sas vmw_pvscsi; do
     modprobe -q "$m" && echo "  + $m" || echo "  - $m (missing/builtin)"
 done
 

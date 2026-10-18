@@ -91,6 +91,13 @@ find "$LFS/usr/lib" -maxdepth 3 -type f -name '*.la' -delete 2>/dev/null || true
 
 log "creating squashfs from $LFS (this takes a while)"
 # -wildcards lets us use globs in exclusions (relative to $LFS).
+#
+# NOTE: /usr/include must NOT be excluded. It carries glibc headers
+# (stdio.h & co) plus the C++ standard headers under /usr/include/c++/;
+# dropping it makes the live image unable to compile C (gcc dies with
+# "stdio.h: No such file or directory"). Excluding it earlier was a
+# size-saving shortcut that silently turned the live shell into a
+# no-compiler box.
 mksquashfs "$LFS" "$ISOROOT/live/filesystem.squashfs" \
     -comp xz \
     -noappend \
@@ -112,7 +119,6 @@ mksquashfs "$LFS" "$ISOROOT/live/filesystem.squashfs" \
         "$LFS/usr/share/locale" \
         "$LFS/usr/share/gtk-doc" \
         "$LFS/usr/share/help" \
-        "$LFS/usr/include" \
         "$LFS/usr/src"
 
 # --- grub.cfg -----------------------------------------------------------------

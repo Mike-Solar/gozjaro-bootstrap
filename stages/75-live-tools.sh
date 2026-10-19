@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Additional user-space tools for the live ISO and future installer:
-# curl, wget, git, rsync, openssh, nano, parted, dosfstools.
+# curl, wget, git, rsync, openssh, nano, dosfstools.
 # Runs inside the chroot, after stage 70 (system config) and before stage 80
 # (kernel) so these tools land in the squashfs.
 # shellcheck source=../lib/common.sh
@@ -147,27 +147,6 @@ b_nano() {
 
 # ---- Disk / filesystem tools ------------------------------------------------
 
-b_parted() {
-    # parted 3.6's do_version() is a legacy K&R empty-paren definition
-    # 'static int / do_version ()' — under a C23-default toolchain with
-    # GCC 14+, passing it into command_create()'s typed slot
-    # 'int (*method)(PedDevice **, PedDisk **)' is a hard
-    # -Wincompatible-pointer-types error (parted.c:2469). All 18 other
-    # do_* commands already take (PedDevice**, PedDisk**); do_version's
-    # body uses no arguments, so just give it the expected signature.
-    # Census: 'do_version ()' appears exactly once (the definition); the
-    # other empty-paren K&R defs in parted.c are not passed to typed
-    # pointer slots and compile fine.
-    sed -i 's/^do_version ()$/do_version (PedDevice **dev, PedDisk **diskp)/' parted/parted.c
-
-    ./configure --prefix=/usr \
-        --disable-static \
-        --disable-debug \
-        --disable-device-mapper
-    make
-    make install
-}
-
 b_dosfstools() {
     ./configure --prefix=/usr \
         --enable-compat-symlinks \
@@ -185,7 +164,6 @@ build_pkg 75.git         "git-"         b_git
 build_pkg 75.rsync       "rsync-"       b_rsync
 build_pkg 75.openssh     "openssh-"     b_openssh
 build_pkg 75.nano        "nano-"        b_nano
-build_pkg 75.parted      "parted-"      b_parted
 build_pkg 75.dosfstools  "dosfstools-"  b_dosfstools
 
 log "live tools installed"

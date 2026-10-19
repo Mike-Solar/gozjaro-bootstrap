@@ -505,4 +505,53 @@ else
     logline "could not fetch upstream md5sums; relying on manifest checksums only"
 fi
 
+# ---------------------------------------------------------------------------
+# Repo-local patches.
+# patches/*.patch are Gozjaro's own in-tree fixes (e.g. the ca-certificates
+# lazy-import guard) with NO upstream URL, so the URL fetcher above never sees
+# them. Copy them into $SOURCES_DIR; build stages apply them via apply_patch(),
+# which reads from $SOURCES_DIR.
+# ---------------------------------------------------------------------------
+repo_local_patches() {
+    local pdir="${GOZJARO_ROOT}/patches"
+    [ -d "$pdir" ] || return 0
+    local p copied=0
+    for p in "$pdir"/*.patch; do
+        [ -f "$p" ] || continue
+        cp -f "$p" "$SOURCES_DIR/$(basename "$p")"
+        logline "repo-local patch: $(basename "$p") -> $SOURCES_DIR"
+        copied=$((copied + 1))
+    done
+    [ "$copied" = "0" ] || logline "delivered $copied repo-local patch(es)"
+}
+repo_local_patches
+
+# ---------------------------------------------------------------------------
+# Installer release (github.com/Gozjaro/gozjaro-install), pinned to a commit in
+# lfs.env (GOZJARO_INSTALL_REF / GOZJARO_INSTALL_SHA256). Stage 77 deploys this
+# exact tree into the live system, so the ISO always ships the installer that
+# was tested. codeload tarballs are byte-deterministic for a given commit, so
+# the sha256 is a hard gate (a changed/absent release fails the build here,
+# not later in the live image).
+# ---------------------------------------------------------------------------
+if [ -n "${GOZJARO_INSTALL_REF:-}" ]; then
+    install_tarball="gozjaro-install-${GOZJARO_INSTALL_REF}.tar.gz"
+    install_url="https://codeload.github.com/Gozjaro/gozjaro-install/tar.gz/${GOZJARO_INSTALL_REF}"
+    if [ -f "$SOURCES_DIR/$install_tarball" ]; then
+        logline "installer $install_tarball already present"
+    else
+        logline "fetching installer release $install_tarball (${GOZJARO_INSTALL_REF:0:8})"
+        wget --timeout=30 --tries=3 --progress=bar:force:noscroll \
+            -U "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
+            -O "$SOURCES_DIR/$install_tarball" "$install_url" \
+            || die "failed to download installer release $install_url"
+    fi
+    if [ -n "${GOZJARO_INSTALL_SHA256:-}" ]; then
+        actual=$(sha256sum "$SOURCES_DIR/$install_tarball" | awk '{print $1}')
+        [ "$actual" = "$GOZJARO_INSTALL_SHA256" ] || \
+            die "installer tarball $install_tarball sha256 mismatch: got $actual, want $GOZJARO_INSTALL_SHA256"
+        logline "installer $install_tarball sha256 verified"
+    fi
+fi
+
 log "sources ready in $SOURCES_DIR (summary: $summary_log)"

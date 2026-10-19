@@ -164,6 +164,29 @@ packages:
     dependencies: []
 
 
+  - name: cpio
+    version: "2.15"
+    category: base
+    source:
+      # Final release of GNU cpio (Jan 2024); tarball ships a pre-generated
+      # configure. The chicken-and-egg piece of the bootstrap: 85-initramfs
+      # packs the initramfs with in-chroot cpio instead of handing the
+      # staging tree to the host.
+      url: https://ftp.gnu.org/gnu/cpio/cpio-2.15.tar.gz
+      checksum:
+        type: sha256
+        value: "efa50ef983137eefc0a02fdb51509d624b5e3295c980aa127ceee4183455499e"
+    build:
+      system: autotools
+      # cpio 2.15 ships a pre-generated configure — no autoreconf, so the
+      # AM_GNU_GETTEXT macros never need external gettext.m4. NLS off is
+      # the LFS convention (no standalone libiconv in the tree).
+      configure:
+        - --prefix=/usr
+        - --disable-nls
+      install_check: cpio --version
+    dependencies: []
+
   - name: coreutils
     version: "9.11"
     category: base
@@ -1071,20 +1094,28 @@ packages:
       install_check: pkgconf --version
     dependencies: []
 
-  - name: parted
-    version: "3.6"
+  - name: gptfdisk
+    version: "1.0.10"
     category: base
     source:
-      url: https://ftp.gnu.org/gnu/parted/parted-3.6.tar.xz
+      # Source of sgdisk — the installer's GPT partitioning tool. NOT LFS-booked
+      # (LFS has no gptfdisk chapter). sgdisk replaces parted, which segfaults
+      # in the live image, across the whole installer; gptfdisk is a clean
+      # makefile (no autotools). Replaces the old `parted` entry, now dropped
+      # because the live parted 3.6 core-dumps under the C23-default toolchain.
+      url: https://downloads.sourceforge.net/gptfdisk/gptfdisk-1.0.10.tar.gz
       checksum:
         type: sha256
-        value: "3b43dbe33cca0f9a18601ebab56b7852b128ec1a3df3a9b30ccde5e73359e612"
+        value: "2abed61bc6d2b9ec498973c0440b8b804b7a72d7144069b5a9209b2ad693a282"
     build:
-      system: autotools
-      configure:
-        - --prefix=/usr
-      install_check: parted --version
-    dependencies: []
+      # sgdisk links -luuid (util-linux) + -lpopt; cgdisk adds -lncursesw. All
+      # three are built earlier in stage 60. Pure `make TARGET=linux` — no
+      # configure. Build gdisk/cgdisk/sgdisk/fixparts and install the binaries.
+      system: make
+      install_check: sgdisk --version
+    dependencies:
+      - popt
+      - util-linux
 
   - name: dosfstools
     version: "4.2"

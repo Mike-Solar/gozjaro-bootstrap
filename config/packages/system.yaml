@@ -308,6 +308,37 @@ packages:
       install_check: openssl version
     dependencies: []
 
+  - name: ca-certificates
+    version: "20260816"
+    category: system
+    source:
+      # Trusted CA bundle — the distribution-level gap behind "unable to get
+      # local issuer certificate (20)". openssl was built --openssldir=/etc/ssl
+      # and curl/wget/git were built against /etc/ssl/certs, but nothing ever
+      # populated /etc/ssl, so every TLS verify died. This is Debian's
+      # ca-certificates (LFS has no CA chapter) built as a first-class package:
+      #   mozilla/Makefile     -> certdata2pem.py turns certdata.txt into 121 .crt
+      #   sbin/Makefile        -> installs update-ca-certificates
+      #   builder              -> generates /etc/ca-certificates.conf, runs
+      #                             update-ca-certificates (symlinks + bundle +
+      #                             rehash), then /etc/ssl/certs/cert.pem -> bundle
+      # certdata2pem.py's only non-stdlib import is python3-cryptography, used
+      # for a LOG-ONLY expired-cert notice; PEM generation is pure base64. The
+      # repo-local patch (patches/ca-certificates-20260816-lazy_import-1.patch,
+      # applied via $SOURCES_DIR by the builder) makes cryptography optional —
+      # verified byte-identical .crt output with or without it — so this does
+      # not drag the pip/setuptools/wheel/cffi/libffi chain into the tree.
+      url: https://ftp.debian.org/debian/pool/main/c/ca-certificates/ca-certificates_20260816.tar.xz
+      checksum:
+        type: sha256
+        value: "d939bcdd0cb058712cf4175bac76997676eb8b68fe9473765e1b40fb3d5b186a"
+    build:
+      system: custom
+      install_check: test -s /etc/ssl/certs/ca-certificates.crt
+    dependencies:
+      - openssl
+      - python3
+
   - name: jinja2
     version: "3.1.6"
     category: system

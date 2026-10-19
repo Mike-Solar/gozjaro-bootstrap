@@ -38,13 +38,15 @@ RELEASE_NOTES="## Gozjaro Linux ${DISTRO_VERSION} live ISO
 **Size:** ${ISO_SIZE}
 
 ### What's included
-- Linux kernel (LFS 12.3 base)
-- systemd 256 as init
-- GRUB 2.12 (BIOS i386-pc + UEFI x86_64-efi)
-- Live tools: curl, wget, git, rsync, openssh, nano, parted, dosfstools
+- Linux kernel 7.1.8 (LFS 13.1)
+- systemd 261 as init
+- GRUB 2.14 (BIOS i386-pc + UEFI x86_64-efi, NVRAM via efibootmgr)
+- Live tools: curl, wget, git, rsync, openssh, nano, dosfstools
+- Partitioning via sgdisk (gptfdisk); parted dropped — it segfaults in the live image
+- Trusted CA bundle (Debian ca-certificates) — HTTPS verification works out of the box
 - gozpak package manager
 - linux-firmware (broad hardware support)
-- \`gozjaro-install\` CLI installer
+- \`gozjaro-install\` TUI installer (github.com/Gozjaro/gozjaro-install)
 
 ### Boot
 \`\`\`

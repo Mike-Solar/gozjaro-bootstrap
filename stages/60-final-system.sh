@@ -544,6 +544,16 @@ b_python_final() {
     tree="$(basename "$PWD")"
     ver="${tree#Python-}"
     install -v -dm755 "/usr/lib/python${ver%.*}/site-packages"
+    # Hard gate for the installer TUI: tui.py is the primary front-end and
+    # falls back to text mode only when `import curses` fails. The curses
+    # module (_curses) links ncursesw, which 60.ncurses-final exposes via
+    # /usr/lib/pkgconfig/ncursesw.pc (--enable-pc-files). If _curses did not
+    # build, the installer silently degrades to text mode for every user —
+    # that is the exact silent failure this stage must not allow. No
+    # `|| true`: a missing _curses aborts the build now instead of shipping
+    # a text-only installer later.
+    python3 -c "import curses; print('_curses OK', curses.version)" \
+        || die "python _curses module missing — ncursesw not found by configure; installer TUI will not build"
 }
 
 b_flit_core() {
@@ -913,6 +923,75 @@ b_efibootmgr() {
     make EFIDIR=Gozjaro EFI_LOADER=grubx64.efi CFLAGS="-O2 -g" install
 }
 
+b_cpio() {
+    # Shipped configure, no NLS (LFS convention). mt is unneeded for our
+    # use (initramfs packing) and stays out.
+    ./configure --prefix=/usr --disable-nls
+    make; make install
+}
+
+b_ca_certificates() {
+    local src="$1"
+    # Trusted CA bundle — the distribution-level gap behind "unable to get
+    # local issuer certificate (20)". openssl (60.openssl) was built
+    # --openssldir=/etc/ssl and curl/wget/git point at /etc/ssl/certs, but
+    # nothing ever populated /etc/ssl. This first-class package does it:
+    #   apply patch -> make (121 .crt) -> make install -> update-ca-certificates
+    # certdata2pem.py's only non-stdlib import is python3-cryptography, used
+    # for a LOG-ONLY expired-cert notice; PEM gen is pure base64. The
+    # repo-local patch (delivered into $SOURCES_DIR by stage 20) makes it
+    # optional — verified byte-identical .crt with or without it — so this
+    # does not drag the pip/setuptools/cffi/libffi chain into the tree.
+    apply_patch "$src" "ca-certificates-20260816-lazy_import-1.patch"
+    # Generate + install: .crt -> /usr/share/ca-certificates/mozilla/,
+    # update-ca-certificates -> /usr/sbin. `make` (all) runs first so the
+    # `install` target's `for p in *.crt` has something to copy.
+    make
+    make install
+    # Ship the user-editable enable list (one .crt basename per line, 121 —
+    # matches the Debian .deb payload exactly). The installed .crt live in
+    # /usr/share/ca-certificates/mozilla/, so list bare basenames from that
+    # subdir; update-ca-certificates --default adds them via its recursive
+    # `find $CERTSDIR -name '*.crt'` pass regardless of the conf.
+    install -v -d /etc
+    ( cd /usr/share/ca-certificates/mozilla && {
+        c=0
+        for f in *.crt; do [ -e "$f" ] && { c=1; printf '%s\n' "$f"; }; done
+        [ "$c" = "1" ] || { echo "no .crt in /usr/share/ca-certificates/mozilla"; exit 1; }
+      } | sort > /etc/ca-certificates.conf )
+    # Populate /etc/ssl: per-cert .pem symlinks + rehash number-suffixed links
+    # + ca-certificates.crt bundle. Runs `openssl rehash .` in /etc/ssl/certs,
+    # so 60.openssl must be present (it is). No hooks dir -> the run-parts
+    # block is skipped, so run-parts is NOT required.
+    install -v -d /etc/ssl/certs
+    /usr/sbin/update-ca-certificates --default
+    # Standard single-bundle symlink used by tooling that hardcodes
+    # /etc/ssl/cert.pem (libcurl's default CAfile fallback, etc).
+    ln -sf certs/ca-certificates.crt /etc/ssl/cert.pem
+}
+
+b_gptfdisk() {
+    # Source of sgdisk (the installer's GPT partitioner) + gdisk/fixparts.
+    # Pure makefile, no autotools. sgdisk links -luuid (util-linux libuuid,
+    # 60.util-linux-fin) + -lpopt (60.popt); cgdisk needs ncursesw but is not
+    # built — only sgdisk matters for the installer. TARGET=linux pins the
+    # Linux default LIB_NAMES/LDLIBS block so the build is host-independent.
+    #
+    # Defensive dev-link guard: gptfdisk links -luuid against an UNVERSIONED
+    # /usr/lib/libuuid.so. util-linux (built --disable-static) installs it as
+    # a shared library with a .so dev link, but if a future util-linux config
+    # ever ships only libuuid.so.N, this symlink is what lets sgdisk link.
+    # Harmless when the link already exists.
+    [ -e /usr/lib/libuuid.so ] || \
+        ln -sf "$(ls -1 /usr/lib/libuuid.so.* 2>/dev/null | sort -V | tail -n1)" /usr/lib/libuuid.so
+    # One invocation builds all three (make resolves each .o prerequisite).
+    # sgdisk links -luuid -lpopt; gdisk -luuid; fixparts links neither.
+    make TARGET=linux sgdisk gdisk fixparts
+    install -v -m755 sgdisk gdisk fixparts /usr/bin
+    install -v -d /usr/share/man/man8
+    install -v -m644 sgdisk.8 gdisk.8 fixparts.8 /usr/share/man/man8
+}
+
 b_linux_firmware() {
     # linux-firmware is prebuilt binary blobs — no compilation, just copy.
     # This adds ~500MB to $LFS and grows the live ISO significantly; trade
@@ -1004,8 +1083,11 @@ build_pkg 60.e2fsprogs      "e2fsprogs-"    b_e2fsprogs
 build_pkg 60.dbus           "dbus-"         b_dbus
 build_pkg 60.systemd        "systemd-"      b_systemd
 build_pkg 60.linux-firmware "linux-firmware-" b_linux_firmware
+build_pkg 60.cpio          "cpio-"            b_cpio
 build_pkg 60.popt          "popt-"            b_popt
 build_pkg 60.efivar        "efivar-"          b_efivar
 build_pkg 60.efibootmgr    "efibootmgr-"      b_efibootmgr
+build_pkg 60.gptfdisk      "gptfdisk-"        b_gptfdisk
+build_pkg 60.ca-certificates "ca-certificates" b_ca_certificates
 
 log "final system packages installed"

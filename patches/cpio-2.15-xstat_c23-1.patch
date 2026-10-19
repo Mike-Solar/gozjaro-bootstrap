@@ -1,0 +1,38 @@
+# Gozjaro in-tree patch: cpio 2.15
+#
+# gcc16 defaults to -std=gnu23. Under C23 the K&R empty-paren declaration
+#   `int (*xstat) ();`  (src/extern.h:100, src/global.c:188)
+# means "zero parameters", so every 2-arg call site
+#   `(*xstat) (name, &stat) < 0`  (copypass.c:104, copyout.c:646, util.c:576)
+# is a hard "expected 0, have 2" error. Same K&R class as parted's
+# do_version(); the fix is in-tree, not a std downgrade.
+#
+# Give xstat the real stat/lstat signature. glibc & macos stat/lstat are
+# `int (const char *__restrict, struct stat *__restrict)`; restrict on
+# parameters does not affect function-type compatibility, so `xstat = stat`
+# / `xstat = lstat` stay assignable. Verified under clang -std=c23 -Werror.
+#
+# Delivered repo-local: stage 20 copies patches/*.patch into $SOURCES_DIR.
+# Apply: apply_patch "$PWD" "cpio-2.15-xstat_c23-1.patch"  (patch -Np1)
+--- a/src/extern.h
++++ b/src/extern.h
+@@ -97,7 +97,7 @@
+ extern char output_is_special;
+ extern char input_is_seekable;
+ extern char output_is_seekable;
+-extern int (*xstat) ();
++extern int (*xstat) (const char *restrict, struct stat *restrict);
+ extern void (*copy_function) ();
+ extern char *change_directory_option;
+ 
+--- a/src/global.c
++++ b/src/global.c
+@@ -185,7 +185,7 @@
+ 
+ /* A pointer to either lstat or stat, depending on whether
+    dereferencing of symlinks is done for input files.  */
+-int (*xstat) ();
++int (*xstat) (const char *restrict, struct stat *restrict);
+ 
+ /* Which copy operation to perform. (-i, -o, -p) */
+ void (*copy_function) () = 0;

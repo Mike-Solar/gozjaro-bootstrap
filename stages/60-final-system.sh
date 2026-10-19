@@ -924,8 +924,10 @@ b_efibootmgr() {
 }
 
 b_cpio() {
+    local src="$1"
     # Shipped configure, no NLS (LFS convention). mt is unneeded for our
     # use (initramfs packing) and stays out.
+    apply_patch "$src" "cpio-2.15-xstat_c23-1.patch"
     ./configure --prefix=/usr --disable-nls
     make; make install
 }

@@ -15,7 +15,7 @@ point and re-run — completed work is skipped via marker files under
 
 ## Quick start
 
-```sh
+```bash
 # 1. Validate your host
 sudo ./build.sh 00-host-check
 
@@ -92,7 +92,7 @@ stages/
 
 ## Usage
 
-```sh
+```bash
 sudo ./build.sh --list           # list stages
 sudo ./build.sh --status         # [x]/[ ] per stage
 sudo ./build.sh --mode binary --list   # list binary-mode stages
@@ -152,7 +152,7 @@ Binary mode additionally requires:
 | 90 | `gozjaro-live.iso` boots in QEMU |
 
 Test with:
-```sh
+```bash
 qemu-system-x86_64 -m 2G -cdrom gozjaro-live.iso
 # NVMe test:
 qemu-system-x86_64 -m 2G -cdrom gozjaro-live.iso \

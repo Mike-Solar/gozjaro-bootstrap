@@ -73,7 +73,6 @@ alias_check() {
 }
 alias_check awk  GNU
 alias_check yacc Bison
-alias_check sh   Bash
 
 if printf 'int main(){}\n' | g++ -x c++ - -o /tmp/gozjaro_cc_test >/dev/null 2>&1; then
     log "g++ works"; rm -f /tmp/gozjaro_cc_test

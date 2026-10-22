@@ -104,7 +104,7 @@ sudo ./build.sh --force 40       # re-run from scratch
 
 - A 64-bit Linux host (Debian 12 / Arch / Fedora)
 - Root access (`sudo`)
-- Build tools: `gcc`, `g++`, `make`, `bison`, `gawk`, `texinfo`, `python3`, `curl` or `wget`
+- Build tools: `gcc`, `g++`, `make`, `bison`, `gawk`, `texinfo`, `python3`, `wget` (required by stage 20); `curl` is optional but preferred for downloads
 - For live ISO: `mksquashfs`, `xorriso`, `grub-mkrescue`, `cpio`
 - 40 GB free disk, 4 GB+ RAM (8 GB+ recommended)
 - An empty partition for `/mnt/lfs`

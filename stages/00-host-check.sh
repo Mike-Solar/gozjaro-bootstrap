@@ -58,6 +58,14 @@ ver_check Texinfo   texi2any 5.0
 ver_check Xz        xz      5.0.0
 ver_kernel 4.19
 
+# wget is required: stage 20 fetches the pinned installer release and the
+# upstream md5sums with it directly, regardless of whether curl is present.
+if command -v wget >/dev/null 2>&1; then
+    log "wget found: $(wget --version 2>/dev/null | head -n1)"
+else
+    warn "wget is missing: stage 20 downloads the installer release with wget"; fail=1
+fi
+
 if mount | grep -q 'devpts on /dev/pts' && [ -e /dev/ptmx ]; then
     log "kernel supports UNIX 98 PTY"
 else

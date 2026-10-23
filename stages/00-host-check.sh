@@ -66,6 +66,16 @@ else
     warn "wget is missing: stage 20 downloads the installer release with wget"; fail=1
 fi
 
+# Live ISO host tools: stage 90 packs the root tree with mksquashfs and
+# builds the ISO with xorriso.
+for tool in mksquashfs xorriso; do
+    if command -v "$tool" >/dev/null 2>&1; then
+        log "$tool found: $(command -v "$tool")"
+    else
+        warn "$tool is missing: stage 90 needs it to build the live ISO"; fail=1
+    fi
+done
+
 if mount | grep -q 'devpts on /dev/pts' && [ -e /dev/ptmx ]; then
     log "kernel supports UNIX 98 PTY"
 else
